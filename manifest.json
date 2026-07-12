@@ -1,0 +1,15 @@
+{
+  "name": "Action Log",
+  "short_name": "Action Log",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#002B71",
+  "theme_color": "#002B71",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

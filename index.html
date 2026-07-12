@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Action Log</title>
+
+<!-- Home screen behaviour -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Action Log" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#002B71" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" href="apple-touch-icon.png" />
+<link rel="manifest" href="manifest.json" />
+
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #002B71; }
+  iframe {
+    border: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* iOS Safari safe-area aware viewport */
+    display: block;
+  }
+  noscript { color: #fff; font-family: sans-serif; padding: 2rem; display: block; }
+</style>
+</head>
+<body>
+
+  <iframe
+    src="https://claude.ai/public/artifacts/daea370e-0b63-4590-aef2-a1b44d3a7020"
+    title="Action Log"
+    allow="clipboard-write"
+  ></iframe>
+
+  <noscript>This page needs JavaScript enabled to load Action Log.</noscript>
+</body>
+</html>
