@@ -159,7 +159,6 @@
       <button class="btn btn-solid" id="btnAddAction">+ Action</button>
       <button class="btn btn-orange" id="btnAddNote">+ Note</button>
       <button class="btn" id="btnPrint">🖶 Print</button>
-      <button class="btn" id="btnEmail">✉ Email</button>
     </div>
   </div>
 
@@ -456,17 +455,6 @@ document.getElementById("filterStatus").addEventListener("change", e => { filter
 document.getElementById("sortBy").addEventListener("change", e => { sortBy = e.target.value; render(); });
 document.getElementById("btnClearFilters").addEventListener("click", () => { filterCustomer = "all"; filterProject = "all"; filterStatus = "all"; render(); });
 document.getElementById("btnPrint").addEventListener("click", () => window.print());
-document.getElementById("btnEmail").addEventListener("click", () => {
-  const dueSoon = state.actions
-    .filter(a => a.status !== "Done")
-    .sort((a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"))
-    .slice(0, 5)
-    .map(a => `- ${customerName(a.customerId)} / ${projectName(a.projectId)}: ${a.description} (due ${fmtDate(a.dueDate)})`)
-    .join("%0D%0A");
-  const subject = encodeURIComponent("Action Log – " + new Date().toLocaleDateString("en-ZA"));
-  const body = encodeURIComponent("Attach the PDF from the print sheet before sending.\n\nOpen items:\n") + dueSoon;
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
-});
 
 // ---------- Modals ----------
 function openModal(html) {
