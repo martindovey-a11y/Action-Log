@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Action Log</title>
 
-<!-- Home screen behaviour -->
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Action Log" />
@@ -16,25 +15,598 @@
 <link rel="manifest" href="manifest.json" />
 
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; background: #002B71; }
-  iframe {
-    border: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* iOS Safari safe-area aware viewport */
-    display: block;
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy: #002B71;
+    --orange: #EF5A01;
+    --paper: #EDEFEC;
+    --line: #D4D8D3;
+    --line-soft: #EEF0EE;
+    --muted: #8A928C;
+    --muted-dark: #5A6660;
+    --done: #7A7A72;
   }
-  noscript { color: #fff; font-family: sans-serif; padding: 2rem; display: block; }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--navy);
+    font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .serif { font-family: 'Space Grotesk', sans-serif; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+  @media (min-width: 640px) { .wrap { padding: 40px 32px 60px; } }
+
+  .header {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin-bottom: 28px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-left img { height: 48px; width: auto; }
+  @media (min-width: 640px) { .header-left img { height: 56px; } }
+  .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); margin-bottom: 4px; }
+  h1 { font-size: 30px; font-weight: 600; margin: 0; }
+  @media (min-width: 640px) { h1 { font-size: 36px; } }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button { font-family: 'Inter', sans-serif; cursor: pointer; border: none; }
+  .btn {
+    padding: 8px 12px; font-size: 14px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line); background: #fff; color: var(--navy);
+  }
+  .btn-orange { color: var(--orange); }
+  .btn-solid { background: var(--navy); color: #fff; border: none; }
+
+  .filters {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    margin-bottom: 24px; padding: 8px; border-radius: 10px;
+    background: #fff; border: 1px solid var(--line);
+  }
+  select {
+    font-family: 'Inter', sans-serif; font-size: 12px; border-radius: 6px;
+    padding: 4px 8px; border: 1px solid var(--line); background: #fff; color: var(--navy);
+    max-width: 140px;
+  }
+  .clear-link {
+    font-size: 12px; display: inline-flex; align-items: center; gap: 4px;
+    color: var(--orange); background: none; padding: 4px 6px;
+  }
+
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-dark); border-bottom: 1px solid var(--line); }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .table-scroll { overflow-x: auto; }
+  .empty-row { text-align: center; padding: 40px 16px; color: var(--muted); font-size: 14px; }
+
+  .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; display: inline-block; margin-right: 8px; }
+  .cust-cell { display: flex; align-items: center; }
+  .status-tag { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; }
+  .due-cell { font-family: 'IBM Plex Mono', monospace; color: var(--muted-dark); white-space: nowrap; }
+  .row-actions { white-space: nowrap; }
+  .icon-btn { background: none; padding: 6px; border-radius: 6px; display: inline-flex; }
+  .icon-btn:hover { background: #f3f3f3; }
+
+  .summary { margin-top: 16px; font-size: 12px; color: var(--muted); }
+
+  .section-eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); margin-bottom: 8px; }
+  .notes-wrap { margin-top: 40px; }
+  .note-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); }
+  .note-row:last-child { border-bottom: none; }
+  .note-no { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .note-text { font-size: 14px; white-space: pre-wrap; color: var(--navy); }
+  .note-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .manage-grid { display: grid; gap: 16px; margin-top: 32px; }
+  @media (min-width: 640px) { .manage-grid { grid-template-columns: 1fr 1fr; } }
+  .manage-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .manage-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 8px; }
+  .manage-list { max-height: 160px; overflow-y: auto; }
+  .manage-item { display: flex; align-items: center; justify-content: space-between; font-size: 14px; padding: 2px 0; }
+  .manage-item .left { display: flex; align-items: center; gap: 8px; }
+  .manage-item .sub { color: var(--muted); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    align-items: center; justify-content: center; padding: 16px;
+    background: rgba(0,43,113,0.45);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal { width: 100%; max-width: 420px; background: #fff; border-radius: 10px; padding: 24px; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .modal-head h2 { font-size: 18px; font-weight: 600; margin: 0; }
+  .modal-close { background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 4px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted-dark); margin-bottom: 4px; }
+  .field input, .field select, .field textarea {
+    width: 100%; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 6px; color: var(--navy); font-family: 'Inter', sans-serif;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--orange); outline-offset: 1px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .error-text { font-size: 13px; color: var(--orange); margin-bottom: 8px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff !important; }
+    .card, .manage-card { box-shadow: none !important; border: 1px solid #ccc !important; }
+    .table-scroll { overflow: visible !important; }
+  }
 </style>
 </head>
 <body>
 
-  <iframe
-    src="https://claude.ai/public/artifacts/daea370e-0b63-4590-aef2-a1b44d3a7020"
-    title="Action Log"
-    allow="clipboard-write"
-  ></iframe>
+<div class="wrap">
+  <div class="header">
+    <div class="header-left">
+      <img src="apple-touch-icon.png" alt="Charles Ambleside" />
+      <div>
+        <div class="eyebrow">Charles Ambleside · Client Operations</div>
+        <h1 class="serif">Action Log</h1>
+      </div>
+    </div>
+    <div class="btn-row no-print">
+      <button class="btn" id="btnAddCustomer">+ Customer</button>
+      <button class="btn" id="btnAddProject">+ Project</button>
+      <button class="btn btn-solid" id="btnAddAction">+ Action</button>
+      <button class="btn btn-orange" id="btnAddNote">+ Note</button>
+      <button class="btn" id="btnPrint">🖶 Print</button>
+      <button class="btn" id="btnEmail">✉ Email</button>
+    </div>
+  </div>
 
-  <noscript>This page needs JavaScript enabled to load Action Log.</noscript>
+  <div class="filters no-print">
+    <select id="filterCustomer"></select>
+    <select id="filterProject"></select>
+    <select id="filterStatus">
+      <option value="all">Status: All statuses</option>
+      <option value="Open">Status: Open</option>
+      <option value="In Progress">Status: In Progress</option>
+      <option value="Done">Status: Done</option>
+    </select>
+    <select id="sortBy">
+      <option value="dueAsc">Due date (soonest)</option>
+      <option value="dueDesc">Due date (latest)</option>
+      <option value="customer">Customer (A–Z)</option>
+      <option value="project">Project (A–Z)</option>
+      <option value="status">Status</option>
+      <option value="newest">Recently added</option>
+    </select>
+    <button class="clear-link" id="btnClearFilters" style="display:none;">↺ Clear</button>
+  </div>
+
+  <div class="card table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Project</th>
+          <th>Action</th>
+          <th>Status</th>
+          <th>Due</th>
+          <th class="no-print"></th>
+        </tr>
+      </thead>
+      <tbody id="actionsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="summary no-print" id="summaryLine"></div>
+
+  <div class="notes-wrap">
+    <div class="section-eyebrow">Notes</div>
+    <div class="card" id="notesCard"></div>
+  </div>
+
+  <div class="manage-grid no-print" id="manageGrid"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<script>
+// ---------- Data ----------
+const STORE_KEY = "action-log-data";
+let state = { customers: [], projects: [], actions: [], notes: [] };
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) { console.error("Load failed", e); }
+  if (!state.customers) state.customers = [];
+  if (!state.projects) state.projects = [];
+  if (!state.actions) state.actions = [];
+  if (!state.notes) state.notes = [];
+}
+function saveState() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch (e) { console.error("Save failed", e); }
+}
+
+function uid(prefix) { return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+const TAB_COLORS = ["#002B71", "#EF5A01", "#35558F", "#B84400", "#001A47", "#F58A44"];
+const STATUSES = ["Open", "In Progress", "Done"];
+const STATUS_COLOR = { Open: "#EF5A01", "In Progress": "#002B71", Done: "#7A7A72" };
+
+function hashColor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return TAB_COLORS[h % TAB_COLORS.length];
+}
+function customerName(id) { return state.customers.find(c => c.id === id)?.name || "—"; }
+function projectName(id) { return state.projects.find(p => p.id === id)?.name || "—"; }
+
+// ---------- Filters / sort ----------
+let filterCustomer = "all", filterProject = "all", filterStatus = "all", sortBy = "dueAsc";
+
+function visibleProjects() {
+  if (filterCustomer === "all") return state.projects;
+  return state.projects.filter(p => p.customerId === filterCustomer);
+}
+function filteredActions() {
+  let list = state.actions.filter(a => {
+    if (filterCustomer !== "all" && a.customerId !== filterCustomer) return false;
+    if (filterProject !== "all" && a.projectId !== filterProject) return false;
+    if (filterStatus !== "all" && a.status !== filterStatus) return false;
+    return true;
+  });
+  list.sort((a, b) => {
+    switch (sortBy) {
+      case "dueAsc": return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
+      case "dueDesc": return (b.dueDate || "0000").localeCompare(a.dueDate || "0000");
+      case "customer": return customerName(a.customerId).localeCompare(customerName(b.customerId));
+      case "project": return projectName(a.projectId).localeCompare(projectName(b.projectId));
+      case "status": return STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
+      case "newest": return b.entryNo - a.entryNo;
+      default: return 0;
+    }
+  });
+  return list;
+}
+
+// ---------- Rendering ----------
+function render() {
+  renderFilterSelects();
+  renderActionsTable();
+  renderSummary();
+  renderNotes();
+  renderManageGrid();
+  saveState();
+}
+
+function renderFilterSelects() {
+  const fc = document.getElementById("filterCustomer");
+  const fp = document.getElementById("filterProject");
+  const prevC = filterCustomer, prevP = filterProject;
+
+  fc.innerHTML = `<option value="all">Customer: All customers</option>` +
+    state.customers.map(c => `<option value="${c.id}">Customer: ${escapeHtml(c.name)}</option>`).join("");
+  fc.value = prevC;
+
+  fp.innerHTML = `<option value="all">Project: All projects</option>` +
+    visibleProjects().map(p => `<option value="${p.id}">Project: ${escapeHtml(p.name)}</option>`).join("");
+  fp.value = prevP;
+
+  document.getElementById("filterStatus").value = filterStatus;
+  document.getElementById("sortBy").value = sortBy;
+
+  const active = filterCustomer !== "all" || filterProject !== "all" || filterStatus !== "all";
+  document.getElementById("btnClearFilters").style.display = active ? "inline-flex" : "none";
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderActionsTable() {
+  const body = document.getElementById("actionsBody");
+  const list = filteredActions();
+  if (list.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" class="empty-row">${
+      state.actions.length === 0
+        ? "No actions yet. Add a customer and project, then log your first action."
+        : "Nothing matches the current filters."
+    }</td></tr>`;
+    return;
+  }
+  body.innerHTML = list.map(a => `
+    <tr>
+      <td><span class="cust-cell"><span class="dot" style="background:${hashColor(a.customerId)}"></span>${escapeHtml(customerName(a.customerId))}</span></td>
+      <td style="color:#3D4A44">${escapeHtml(projectName(a.projectId))}</td>
+      <td style="max-width:320px">${escapeHtml(a.description)}</td>
+      <td><span class="status-tag" style="color:${STATUS_COLOR[a.status]};background:${STATUS_COLOR[a.status]}18">${a.status}</span></td>
+      <td class="due-cell">${fmtDate(a.dueDate)}</td>
+      <td class="row-actions no-print">
+        <button class="icon-btn" onclick="openActionModal('${a.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteAction('${a.id}')" title="Delete" style="color:#EF5A01">🗑</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function renderSummary() {
+  const el = document.getElementById("summaryLine");
+  const list = filteredActions();
+  el.textContent = `${list.length} of ${state.actions.length} action${state.actions.length === 1 ? "" : "s"} shown · ${state.customers.length} customer${state.customers.length === 1 ? "" : "s"} · ${state.projects.length} project${state.projects.length === 1 ? "" : "s"}`;
+}
+
+function renderNotes() {
+  const card = document.getElementById("notesCard");
+  const notes = state.notes.slice().sort((a, b) => b.entryNo - a.entryNo);
+  if (notes.length === 0) {
+    card.innerHTML = `<div style="padding:24px 16px;font-size:14px;color:#8A928C;">No standalone notes yet. Use this for anything that isn't tied to a customer or project.</div>`;
+    return;
+  }
+  card.innerHTML = notes.map(n => `
+    <div class="note-row">
+      <span class="note-no">${String(n.entryNo).padStart(3, "0")}</span>
+      <div style="flex:1">
+        <div class="note-text">${escapeHtml(n.text)}</div>
+        <div class="note-date">${fmtDate(n.createdAt)}</div>
+      </div>
+      <div class="no-print" style="display:flex;gap:4px;">
+        <button class="icon-btn" onclick="openNoteModal('${n.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteNote('${n.id}')" title="Delete" style="color:#EF5A01">🗑</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderManageGrid() {
+  const grid = document.getElementById("manageGrid");
+  if (state.customers.length === 0 && state.projects.length === 0) { grid.innerHTML = ""; return; }
+  grid.innerHTML = `
+    <div class="manage-card">
+      <div class="manage-title">Customers</div>
+      <div class="manage-list">
+        ${state.customers.length === 0 ? '<div style="font-size:14px;color:#8A928C">None yet.</div>' :
+          state.customers.map(c => `
+            <div class="manage-item">
+              <span class="left"><span class="dot" style="background:${hashColor(c.id)}"></span>${escapeHtml(c.name)}</span>
+              <button class="icon-btn" onclick="deleteCustomer('${c.id}')" style="color:#EF5A01">🗑</button>
+            </div>
+          `).join("")}
+      </div>
+    </div>
+    <div class="manage-card">
+      <div class="manage-title">Projects</div>
+      <div class="manage-list">
+        ${state.projects.length === 0 ? '<div style="font-size:14px;color:#8A928C">None yet.</div>' :
+          state.projects.map(p => `
+            <div class="manage-item">
+              <span class="left">${escapeHtml(p.name)} <span class="sub">· ${escapeHtml(customerName(p.customerId))}</span></span>
+              <button class="icon-btn" onclick="deleteProject('${p.id}')" style="color:#EF5A01">🗑</button>
+            </div>
+          `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ---------- CRUD ----------
+function addCustomer(name) {
+  state.customers.push({ id: uid("cus"), name });
+  render();
+}
+function addProject(name, customerId) {
+  state.projects.push({ id: uid("prj"), name, customerId });
+  render();
+}
+function upsertAction(fields, editId) {
+  if (editId) {
+    const idx = state.actions.findIndex(x => x.id === editId);
+    if (idx > -1) state.actions[idx] = { ...state.actions[idx], ...fields };
+  } else {
+    const entryNo = state.actions.length ? Math.max(...state.actions.map(x => x.entryNo)) + 1 : 1;
+    state.actions.push({ id: uid("act"), entryNo, createdAt: todayISO(), ...fields });
+  }
+  render();
+}
+function deleteAction(id) { state.actions = state.actions.filter(x => x.id !== id); render(); }
+function upsertNote(fields, editId) {
+  if (editId) {
+    const idx = state.notes.findIndex(x => x.id === editId);
+    if (idx > -1) state.notes[idx] = { ...state.notes[idx], ...fields };
+  } else {
+    const entryNo = state.notes.length ? Math.max(...state.notes.map(x => x.entryNo)) + 1 : 1;
+    state.notes.push({ id: uid("note"), entryNo, createdAt: todayISO(), ...fields });
+  }
+  render();
+}
+function deleteNote(id) { state.notes = state.notes.filter(x => x.id !== id); render(); }
+function deleteCustomer(id) {
+  state.customers = state.customers.filter(x => x.id !== id);
+  state.projects = state.projects.filter(x => x.customerId !== id);
+  state.actions = state.actions.filter(x => x.customerId !== id);
+  if (filterCustomer === id) filterCustomer = "all";
+  render();
+}
+function deleteProject(id) {
+  state.projects = state.projects.filter(x => x.id !== id);
+  state.actions = state.actions.filter(x => x.projectId !== id);
+  if (filterProject === id) filterProject = "all";
+  render();
+}
+
+// ---------- Filter/sort event wiring ----------
+document.getElementById("filterCustomer").addEventListener("change", e => { filterCustomer = e.target.value; filterProject = "all"; render(); });
+document.getElementById("filterProject").addEventListener("change", e => { filterProject = e.target.value; render(); });
+document.getElementById("filterStatus").addEventListener("change", e => { filterStatus = e.target.value; render(); });
+document.getElementById("sortBy").addEventListener("change", e => { sortBy = e.target.value; render(); });
+document.getElementById("btnClearFilters").addEventListener("click", () => { filterCustomer = "all"; filterProject = "all"; filterStatus = "all"; render(); });
+document.getElementById("btnPrint").addEventListener("click", () => window.print());
+document.getElementById("btnEmail").addEventListener("click", () => {
+  const dueSoon = state.actions
+    .filter(a => a.status !== "Done")
+    .sort((a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"))
+    .slice(0, 5)
+    .map(a => `- ${customerName(a.customerId)} / ${projectName(a.projectId)}: ${a.description} (due ${fmtDate(a.dueDate)})`)
+    .join("%0D%0A");
+  const subject = encodeURIComponent("Action Log – " + new Date().toLocaleDateString("en-ZA"));
+  const body = encodeURIComponent("Attach the PDF from the print sheet before sending.\n\nOpen items:\n") + dueSoon;
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+});
+
+// ---------- Modals ----------
+function openModal(html) {
+  document.getElementById("modalBox").innerHTML = html;
+  document.getElementById("modalOverlay").classList.add("open");
+}
+function closeModal() {
+  document.getElementById("modalOverlay").classList.remove("open");
+}
+document.getElementById("modalOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "modalOverlay") closeModal();
+});
+
+document.getElementById("btnAddCustomer").addEventListener("click", () => openCustomerModal());
+document.getElementById("btnAddProject").addEventListener("click", () => openProjectModal());
+document.getElementById("btnAddAction").addEventListener("click", () => openActionModal());
+document.getElementById("btnAddNote").addEventListener("click", () => openNoteModal());
+
+function openCustomerModal() {
+  openModal(`
+    <div class="modal-head"><h2 class="serif">Add customer</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Customer name</label><input id="mName" placeholder="e.g. Acme Foods" autofocus /></div>
+    <div class="error-text" id="mError" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-solid" onclick="submitCustomer()">Save</button>
+    </div>
+  `);
+}
+function submitCustomer() {
+  const name = document.getElementById("mName").value.trim();
+  if (!name) return showModalError("Enter a customer name.");
+  addCustomer(name);
+  closeModal();
+}
+
+function openProjectModal() {
+  const custOptions = state.customers.length
+    ? state.customers.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
+    : `<option value="">No customers yet</option>`;
+  openModal(`
+    <div class="modal-head"><h2 class="serif">Add project</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Customer</label><select id="mCustomer">${custOptions}</select></div>
+    <div class="field"><label>Project name</label><input id="mName" placeholder="e.g. Reb A bioconversion trial" autofocus /></div>
+    <div class="error-text" id="mError" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-solid" onclick="submitProject()">Save</button>
+    </div>
+  `);
+}
+function submitProject() {
+  const name = document.getElementById("mName").value.trim();
+  const customerId = document.getElementById("mCustomer").value;
+  if (!name) return showModalError("Enter a project name.");
+  if (!customerId) return showModalError("Choose a customer first.");
+  addProject(name, customerId);
+  closeModal();
+}
+
+function openActionModal(editId) {
+  const editing = editId ? state.actions.find(a => a.id === editId) : null;
+  const custId = editing?.customerId || state.customers[0]?.id || "";
+  renderActionModalBody(custId, editing, editId);
+}
+function renderActionModalBody(selectedCustomerId, editing, editId) {
+  const custOptions = state.customers.length
+    ? state.customers.map(c => `<option value="${c.id}" ${c.id === selectedCustomerId ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")
+    : `<option value="">No customers yet</option>`;
+  const projForCust = state.projects.filter(p => p.customerId === selectedCustomerId);
+  const selectedProjectId = editing?.projectId || projForCust[0]?.id || "";
+  const projOptions = `<option value="">Select project</option>` +
+    projForCust.map(p => `<option value="${p.id}" ${p.id === selectedProjectId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("");
+  const statusOptions = STATUSES.map(s => `<option value="${s}" ${editing?.status === s ? "selected" : ""}>${s}</option>`).join("");
+
+  openModal(`
+    <div class="modal-head"><h2 class="serif">${editing ? "Edit action" : "Add action"}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Customer</label><select id="mCustomer" onchange="onActionCustomerChange('${editId || ""}')">${custOptions}</select></div>
+    <div class="field"><label>Project</label><select id="mProject">${projOptions}</select></div>
+    <div class="field"><label>Action</label><textarea id="mDescription" rows="3" placeholder="What needs to happen?">${editing ? escapeHtml(editing.description) : ""}</textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Status</label><select id="mStatus">${statusOptions}</select></div>
+      <div class="field"><label>Due date</label><input type="date" id="mDueDate" value="${editing?.dueDate || ""}" /></div>
+    </div>
+    <div class="error-text" id="mError" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-solid" onclick="submitAction('${editId || ""}')">Save</button>
+    </div>
+  `);
+}
+function onActionCustomerChange(editId) {
+  const custId = document.getElementById("mCustomer").value;
+  const editing = editId ? state.actions.find(a => a.id === editId) : null;
+  renderActionModalBody(custId, editing, editId);
+}
+function submitAction(editId) {
+  const customerId = document.getElementById("mCustomer").value;
+  const projectId = document.getElementById("mProject").value;
+  const description = document.getElementById("mDescription").value.trim();
+  const status = document.getElementById("mStatus").value;
+  const dueDate = document.getElementById("mDueDate").value;
+  if (!customerId) return showModalError("Choose a customer.");
+  if (!projectId) return showModalError("Choose a project.");
+  if (!description) return showModalError("Describe the action.");
+  upsertAction({ customerId, projectId, description, status, dueDate }, editId || null);
+  closeModal();
+}
+
+function openNoteModal(editId) {
+  const editing = editId ? state.notes.find(n => n.id === editId) : null;
+  openModal(`
+    <div class="modal-head"><h2 class="serif">${editing ? "Edit note" : "Add note"}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Note</label><textarea id="mNoteText" rows="5" placeholder="Anything worth keeping that isn't tied to a customer or project…" autofocus>${editing ? escapeHtml(editing.text) : ""}</textarea></div>
+    <div class="error-text" id="mError" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-solid" onclick="submitNote('${editId || ""}')">Save</button>
+    </div>
+  `);
+}
+function submitNote(editId) {
+  const text = document.getElementById("mNoteText").value.trim();
+  if (!text) return showModalError("Write something first.");
+  upsertNote({ text }, editId || null);
+  closeModal();
+}
+
+function showModalError(msg) {
+  const el = document.getElementById("mError");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+// ---------- Init ----------
+loadState();
+if (state.customers.length === 0 && state.projects.length === 0 && state.actions.length === 0 && state.notes.length === 0) {
+  state.customers = ["Mitsui", "KH Roberts", "Wostevia", "MRP Ingredients"].map(name => ({ id: uid("cus"), name }));
+}
+render();
+</script>
 </body>
 </html>
