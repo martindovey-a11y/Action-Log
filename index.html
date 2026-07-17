@@ -93,22 +93,33 @@
   }
 
   .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-dark); border-bottom: 1px solid var(--line); }
-  td { padding: 12px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  .table-scroll { overflow-x: auto; }
   .empty-row { text-align: center; padding: 40px 16px; color: var(--muted); font-size: 14px; }
 
+  .action-item { border-bottom: 1px solid var(--line-soft); }
+  .action-item:last-child { border-bottom: none; }
+  .action-main { padding: 14px 16px; cursor: pointer; }
+  .action-main:active { background: #FAFAF9; }
+  .action-desc { font-size: 15px; line-height: 1.4; color: var(--navy); }
+  .action-meta { display: flex; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted-dark); }
+  .action-details {
+    display: none; padding: 0 16px 14px; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .action-item.open .action-details { display: flex; }
+  .action-item.open .action-main { padding-bottom: 6px; }
+
   .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; display: inline-block; margin-right: 8px; }
-  .cust-cell { display: flex; align-items: center; }
   .status-tag { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; }
-  .due-cell { font-family: 'IBM Plex Mono', monospace; color: var(--muted-dark); white-space: nowrap; }
-  .row-actions { white-space: nowrap; }
+  .due-cell { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted-dark); white-space: nowrap; }
+  .row-actions { white-space: nowrap; margin-left: auto; }
   .icon-btn { background: none; padding: 6px; border-radius: 6px; display: inline-flex; }
   .icon-btn:hover { background: #f3f3f3; }
 
   .summary { margin-top: 16px; font-size: 12px; color: var(--muted); }
+
+  @media print {
+    .action-details { display: flex !important; }
+    .action-item.open .action-main { padding-bottom: 14px; }
+  }
 
   .section-eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); margin-bottom: 8px; }
   .notes-wrap { margin-top: 40px; }
@@ -152,7 +163,6 @@
     .no-print { display: none !important; }
     body { background: #fff !important; }
     .card, .manage-card { box-shadow: none !important; border: 1px solid #ccc !important; }
-    .table-scroll { overflow: visible !important; }
   }
 </style>
 </head>
@@ -173,6 +183,9 @@
       <button class="btn btn-solid" id="btnAddAction">+ Action</button>
       <button class="btn btn-orange" id="btnAddNote">+ Note</button>
       <button class="btn" id="btnPrint">🖶 Print</button>
+      <button class="btn" id="btnExport">⬇ Export</button>
+      <button class="btn" id="btnImport">⬆ Import</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none;" />
     </div>
   </div>
 
@@ -196,21 +209,7 @@
     <button class="clear-link" id="btnClearFilters" style="display:none;">↺ Clear</button>
   </div>
 
-  <div class="card table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>Customer</th>
-          <th>Project</th>
-          <th>Action</th>
-          <th>Status</th>
-          <th>Due</th>
-          <th class="no-print"></th>
-        </tr>
-      </thead>
-      <tbody id="actionsBody"></tbody>
-    </table>
-  </div>
+  <div class="card" id="actionsList"></div>
 
   <div class="summary no-print" id="summaryLine"></div>
 
@@ -297,9 +296,11 @@ function filteredActions() {
 }
 
 // ---------- Rendering ----------
+let expandedActions = new Set();
+
 function render() {
   renderFilterSelects();
-  renderActionsTable();
+  renderActionsList();
   renderSummary();
   renderNotes();
   renderManageGrid();
@@ -332,30 +333,42 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function renderActionsTable() {
-  const body = document.getElementById("actionsBody");
+function toggleAction(id) {
+  if (expandedActions.has(id)) expandedActions.delete(id);
+  else expandedActions.add(id);
+  renderActionsList();
+}
+
+function renderActionsList() {
+  const container = document.getElementById("actionsList");
   const list = filteredActions();
   if (list.length === 0) {
-    body.innerHTML = `<tr><td colspan="6" class="empty-row">${
+    container.innerHTML = `<div class="empty-row">${
       state.actions.length === 0
         ? "No actions yet. Add a customer and project, then log your first action."
         : "Nothing matches the current filters."
-    }</td></tr>`;
+    }</div>`;
     return;
   }
-  body.innerHTML = list.map(a => `
-    <tr>
-      <td><span class="cust-cell"><span class="dot" style="background:${hashColor(a.customerId)}"></span>${escapeHtml(customerName(a.customerId))}</span></td>
-      <td style="color:#3D4A44">${escapeHtml(projectName(a.projectId))}</td>
-      <td style="max-width:320px">${escapeHtml(a.description)}</td>
-      <td><span class="status-tag" style="color:${STATUS_COLOR[a.status]};background:${STATUS_COLOR[a.status]}18">${a.status}</span></td>
-      <td class="due-cell">${fmtDate(a.dueDate)}</td>
-      <td class="row-actions no-print">
-        <button class="icon-btn" onclick="openActionModal('${a.id}')" title="Edit">✎</button>
-        <button class="icon-btn" onclick="deleteAction('${a.id}')" title="Delete" style="color:#EF5A01">🗑</button>
-      </td>
-    </tr>
-  `).join("");
+  container.innerHTML = list.map(a => {
+    const open = expandedActions.has(a.id);
+    return `
+    <div class="action-item ${open ? "open" : ""}">
+      <div class="action-main" onclick="toggleAction('${a.id}')">
+        <div class="action-desc">${escapeHtml(a.description)}</div>
+        <div class="action-meta"><span class="dot" style="background:${hashColor(a.customerId)}"></span>${escapeHtml(customerName(a.customerId))} · ${escapeHtml(projectName(a.projectId))}</div>
+      </div>
+      <div class="action-details">
+        <span class="status-tag" style="color:${STATUS_COLOR[a.status]};background:${STATUS_COLOR[a.status]}18">${a.status}</span>
+        <span class="due-cell">Due ${fmtDate(a.dueDate)}</span>
+        <span class="row-actions no-print">
+          <button class="icon-btn" onclick="event.stopPropagation(); openActionModal('${a.id}')" title="Edit">✎</button>
+          <button class="icon-btn" onclick="event.stopPropagation(); deleteAction('${a.id}')" title="Delete" style="color:#EF5A01">🗑</button>
+        </span>
+      </div>
+    </div>
+  `;
+  }).join("");
 }
 
 function renderSummary() {
@@ -469,6 +482,57 @@ document.getElementById("filterStatus").addEventListener("change", e => { filter
 document.getElementById("sortBy").addEventListener("change", e => { sortBy = e.target.value; render(); });
 document.getElementById("btnClearFilters").addEventListener("click", () => { filterCustomer = "all"; filterProject = "all"; filterStatus = "all"; render(); });
 document.getElementById("btnPrint").addEventListener("click", () => window.print());
+
+document.getElementById("btnExport").addEventListener("click", () => {
+  const payload = JSON.stringify(state, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `action-log-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("btnImport").addEventListener("click", () => {
+  document.getElementById("importFile").click();
+});
+document.getElementById("importFile").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    let parsed;
+    try {
+      parsed = JSON.parse(evt.target.result);
+    } catch (err) {
+      alert("That file isn't valid backup JSON.");
+      e.target.value = "";
+      return;
+    }
+    const looksValid = parsed && ["customers", "projects", "actions", "notes"].every(
+      key => Array.isArray(parsed[key])
+    );
+    if (!looksValid) {
+      alert("That file doesn't look like an Action Log backup.");
+      e.target.value = "";
+      return;
+    }
+    const proceed = confirm(
+      `Import this backup? It contains ${parsed.customers.length} customers, ${parsed.projects.length} projects, ${parsed.actions.length} actions, ${parsed.notes.length} notes.\n\nThis will replace everything currently in the app.`
+    );
+    if (proceed) {
+      state = parsed;
+      filterCustomer = "all"; filterProject = "all"; filterStatus = "all";
+      render();
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+});
 
 // ---------- Modals ----------
 function openModal(html) {
