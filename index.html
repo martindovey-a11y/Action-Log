@@ -138,6 +138,11 @@
   .manage-item .left { display: flex; align-items: center; gap: 8px; }
   .manage-item .sub { color: var(--muted); }
 
+  .backup-row {
+    display: flex; justify-content: center; gap: 8px;
+    margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--line);
+  }
+
   .modal-overlay {
     position: fixed; inset: 0; z-index: 50; display: none;
     align-items: center; justify-content: center; padding: 16px;
@@ -183,9 +188,6 @@
       <button class="btn btn-solid" id="btnAddAction">+ Action</button>
       <button class="btn btn-orange" id="btnAddNote">+ Note</button>
       <button class="btn" id="btnPrint">🖶 Print</button>
-      <button class="btn" id="btnExport">⬇ Export</button>
-      <button class="btn" id="btnImport">⬆ Import</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none;" />
     </div>
   </div>
 
@@ -219,6 +221,12 @@
   </div>
 
   <div class="manage-grid no-print" id="manageGrid"></div>
+
+  <div class="backup-row no-print">
+    <button class="btn" id="btnExport">⬇ Export</button>
+    <button class="btn" id="btnImport">⬆ Import</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none;" />
+  </div>
 </div>
 
 <!-- Modal -->
@@ -282,6 +290,8 @@ function filteredActions() {
     return true;
   });
   list.sort((a, b) => {
+    const pDiff = (b.priority ? 1 : 0) - (a.priority ? 1 : 0);
+    if (pDiff !== 0) return pDiff;
     switch (sortBy) {
       case "dueAsc": return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
       case "dueDesc": return (b.dueDate || "0000").localeCompare(a.dueDate || "0000");
@@ -352,10 +362,11 @@ function renderActionsList() {
   }
   container.innerHTML = list.map(a => {
     const open = expandedActions.has(a.id);
+    const priorityStyle = a.priority ? `border-left: 3px solid #EF5A01;` : `border-left: 3px solid transparent;`;
     return `
-    <div class="action-item ${open ? "open" : ""}">
+    <div class="action-item ${open ? "open" : ""}" style="${priorityStyle}">
       <div class="action-main" onclick="toggleAction('${a.id}')">
-        <div class="action-desc">${escapeHtml(a.description)}</div>
+        <div class="action-desc">${a.priority ? '<span class="priority-flag" title="Priority">🚩</span> ' : ""}${escapeHtml(a.description)}</div>
         <div class="action-meta"><span class="dot" style="background:${hashColor(a.customerId)}"></span>${escapeHtml(customerName(a.customerId))} · ${escapeHtml(projectName(a.projectId))}</div>
       </div>
       <div class="action-details">
@@ -617,6 +628,10 @@ function renderActionModalBody(selectedCustomerId, editing, editId) {
       <div class="field"><label>Status</label><select id="mStatus">${statusOptions}</select></div>
       <div class="field"><label>Due date</label><input type="date" id="mDueDate" value="${editing?.dueDate || ""}" /></div>
     </div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="mPriority" style="width:auto;" ${editing?.priority ? "checked" : ""} />
+      <label for="mPriority" style="margin:0;">🚩 Mark as priority</label>
+    </div>
     <div class="error-text" id="mError" style="display:none;"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
@@ -635,10 +650,11 @@ function submitAction(editId) {
   const description = document.getElementById("mDescription").value.trim();
   const status = document.getElementById("mStatus").value;
   const dueDate = document.getElementById("mDueDate").value;
+  const priority = document.getElementById("mPriority").checked;
   if (!customerId) return showModalError("Choose a customer.");
   if (!projectId) return showModalError("Choose a project.");
   if (!description) return showModalError("Describe the action.");
-  upsertAction({ customerId, projectId, description, status, dueDate }, editId || null);
+  upsertAction({ customerId, projectId, description, status, dueDate, priority }, editId || null);
   closeModal();
 }
 
