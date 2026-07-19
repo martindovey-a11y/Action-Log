@@ -195,9 +195,7 @@
     <select id="filterCustomer"></select>
     <select id="filterProject"></select>
     <select id="filterStatus">
-      <option value="all">Status: All statuses</option>
-      <option value="Open">Status: Open</option>
-      <option value="In Progress">Status: In Progress</option>
+      <option value="all">Status: All (Open)</option>
       <option value="Done">Status: Done</option>
     </select>
     <select id="sortBy">
@@ -264,8 +262,8 @@ function fmtDate(iso) {
 }
 
 const TAB_COLORS = ["#002B71", "#EF5A01", "#35558F", "#B84400", "#001A47", "#F58A44"];
-const STATUSES = ["Open", "In Progress", "Done"];
-const STATUS_COLOR = { Open: "#EF5A01", "In Progress": "#002B71", Done: "#7A7A72" };
+const STATUSES = ["Open", "Done"];
+const STATUS_COLOR = { Open: "#EF5A01", Done: "#7A7A72" };
 
 function hashColor(id) {
   let h = 0;
@@ -286,6 +284,7 @@ function filteredActions() {
   let list = state.actions.filter(a => {
     if (filterCustomer !== "all" && a.customerId !== filterCustomer) return false;
     if (filterProject !== "all" && a.projectId !== filterProject) return false;
+    if (filterStatus === "all" && a.status === "Done") return false;
     if (filterStatus !== "all" && a.status !== filterStatus) return false;
     return true;
   });
