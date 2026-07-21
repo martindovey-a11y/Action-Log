@@ -170,6 +170,7 @@
     .card, .manage-card { box-shadow: none !important; border: 1px solid #ccc !important; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -187,6 +188,7 @@
       <button class="btn" id="btnAddProject">+ Project</button>
       <button class="btn btn-solid" id="btnAddAction">+ Action</button>
       <button class="btn btn-orange" id="btnAddNote">+ Note</button>
+      <button class="btn" id="btnAddTime">⏱ Time</button>
       <button class="btn" id="btnPrint">🖶 Print</button>
     </div>
   </div>
@@ -218,6 +220,14 @@
     <div class="card" id="notesCard"></div>
   </div>
 
+  <div class="notes-wrap">
+    <div class="section-eyebrow" style="display:flex; align-items:center; justify-content:space-between;">
+      <span>Time Log</span>
+      <button class="btn no-print" id="btnTimeReport" style="text-transform:none; letter-spacing:normal; font-size:12px; padding:5px 10px;">📊 Monthly report (Excel)</button>
+    </div>
+    <div class="card" id="timeCard"></div>
+  </div>
+
   <div class="manage-grid no-print" id="manageGrid"></div>
 
   <div class="backup-row no-print">
@@ -235,7 +245,7 @@
 <script>
 // ---------- Data ----------
 const STORE_KEY = "action-log-data";
-let state = { customers: [], projects: [], actions: [], notes: [] };
+let state = { customers: [], projects: [], actions: [], notes: [], timeLogs: [] };
 
 function loadState() {
   try {
@@ -246,6 +256,7 @@ function loadState() {
   if (!state.projects) state.projects = [];
   if (!state.actions) state.actions = [];
   if (!state.notes) state.notes = [];
+  if (!state.timeLogs) state.timeLogs = [];
 }
 function saveState() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
@@ -312,6 +323,7 @@ function render() {
   renderActionsList();
   renderSummary();
   renderNotes();
+  renderTimeLog();
   renderManageGrid();
   saveState();
 }
@@ -409,6 +421,32 @@ function renderNotes() {
   `).join("");
 }
 
+function renderTimeLog() {
+  const card = document.getElementById("timeCard");
+  const logs = state.timeLogs.slice().sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  if (logs.length === 0) {
+    card.innerHTML = `<div style="padding:24px 16px;font-size:14px;color:#8A928C;">No time logged yet. Use + Time to log hours against a customer for a given day.</div>`;
+    return;
+  }
+  card.innerHTML = logs.map(t => `
+    <div class="note-row">
+      <span class="note-no" style="width:82px;flex-shrink:0;">${fmtDate(t.date)}</span>
+      <div style="flex:1">
+        <div class="note-text" style="display:flex;align-items:center;gap:8px;">
+          <span class="dot" style="background:${hashColor(t.customerId)}"></span>
+          ${escapeHtml(customerName(t.customerId))}
+          <span class="due-cell" style="margin-left:auto;">${t.hours}h</span>
+        </div>
+        ${t.note ? `<div class="note-date" style="margin-top:4px;">${escapeHtml(t.note)}</div>` : ""}
+      </div>
+      <div class="no-print" style="display:flex;gap:4px;">
+        <button class="icon-btn" onclick="openTimeModal('${t.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="deleteTimeLog('${t.id}')" title="Delete" style="color:#EF5A01">🗑</button>
+      </div>
+    </div>
+  `).join("");
+}
+
 function renderManageGrid() {
   const grid = document.getElementById("manageGrid");
   if (state.customers.length === 0 && state.projects.length === 0) { grid.innerHTML = ""; return; }
@@ -471,10 +509,21 @@ function upsertNote(fields, editId) {
   render();
 }
 function deleteNote(id) { state.notes = state.notes.filter(x => x.id !== id); render(); }
+function upsertTimeLog(fields, editId) {
+  if (editId) {
+    const idx = state.timeLogs.findIndex(x => x.id === editId);
+    if (idx > -1) state.timeLogs[idx] = { ...state.timeLogs[idx], ...fields };
+  } else {
+    state.timeLogs.push({ id: uid("time"), createdAt: todayISO(), ...fields });
+  }
+  render();
+}
+function deleteTimeLog(id) { state.timeLogs = state.timeLogs.filter(x => x.id !== id); render(); }
 function deleteCustomer(id) {
   state.customers = state.customers.filter(x => x.id !== id);
   state.projects = state.projects.filter(x => x.customerId !== id);
   state.actions = state.actions.filter(x => x.customerId !== id);
+  state.timeLogs = state.timeLogs.filter(x => x.customerId !== id);
   if (filterCustomer === id) filterCustomer = "all";
   render();
 }
@@ -560,6 +609,8 @@ document.getElementById("btnAddCustomer").addEventListener("click", () => openCu
 document.getElementById("btnAddProject").addEventListener("click", () => openProjectModal());
 document.getElementById("btnAddAction").addEventListener("click", () => openActionModal());
 document.getElementById("btnAddNote").addEventListener("click", () => openNoteModal());
+document.getElementById("btnAddTime").addEventListener("click", () => openTimeModal());
+document.getElementById("btnTimeReport").addEventListener("click", () => openTimeReportModal());
 
 function openCustomerModal() {
   openModal(`
@@ -673,6 +724,96 @@ function submitNote(editId) {
   const text = document.getElementById("mNoteText").value.trim();
   if (!text) return showModalError("Write something first.");
   upsertNote({ text }, editId || null);
+  closeModal();
+}
+
+function openTimeModal(editId) {
+  const editing = editId ? state.timeLogs.find(t => t.id === editId) : null;
+  const custOptions = state.customers.length
+    ? state.customers.map(c => `<option value="${c.id}" ${editing?.customerId === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")
+    : `<option value="">No customers yet</option>`;
+  openModal(`
+    <div class="modal-head"><h2 class="serif">${editing ? "Edit time entry" : "Log time"}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Customer</label><select id="mCustomer">${custOptions}</select></div>
+    <div class="field-row">
+      <div class="field"><label>Date</label><input type="date" id="mDate" value="${editing?.date || todayISO()}" /></div>
+      <div class="field"><label>Hours</label><input type="number" id="mHours" step="0.25" min="0" placeholder="e.g. 1.5" value="${editing?.hours ?? ""}" /></div>
+    </div>
+    <div class="field"><label>Note (optional)</label><input id="mTimeNote" placeholder="What was the time for?" value="${editing ? escapeHtml(editing.note || "") : ""}" /></div>
+    <div class="error-text" id="mError" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-solid" onclick="submitTime('${editId || ""}')">Save</button>
+    </div>
+  `);
+}
+function submitTime(editId) {
+  const customerId = document.getElementById("mCustomer").value;
+  const date = document.getElementById("mDate").value;
+  const hours = parseFloat(document.getElementById("mHours").value);
+  const note = document.getElementById("mTimeNote").value.trim();
+  if (!customerId) return showModalError("Choose a customer.");
+  if (!date) return showModalError("Pick a date.");
+  if (!hours || hours <= 0) return showModalError("Enter hours greater than 0.");
+  upsertTimeLog({ customerId, date, hours, note }, editId || null);
+  closeModal();
+}
+
+function openTimeReportModal() {
+  const now = new Date();
+  const defaultMonth = now.toISOString().slice(0, 7);
+  openModal(`
+    <div class="modal-head"><h2 class="serif">Monthly time report</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="field"><label>Month</label><input type="month" id="mReportMonth" value="${defaultMonth}" /></div>
+    <div class="error-text" id="mError" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-solid" onclick="generateTimeReport()">Download Excel</button>
+    </div>
+  `);
+}
+function generateTimeReport() {
+  const month = document.getElementById("mReportMonth").value; // "YYYY-MM"
+  if (!month) return showModalError("Choose a month.");
+  const entries = state.timeLogs.filter(t => t.date.startsWith(month));
+  if (entries.length === 0) {
+    return showModalError("No time logged for that month.");
+  }
+  if (typeof XLSX === "undefined") {
+    return showModalError("Excel library failed to load — check your internet connection and try again.");
+  }
+
+  // Detail sheet: one row per entry, sorted by date then customer
+  const detailRows = entries
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || customerName(a.customerId).localeCompare(customerName(b.customerId)))
+    .map(t => ({
+      Date: t.date,
+      Customer: customerName(t.customerId),
+      Hours: t.hours,
+      Note: t.note || ""
+    }));
+
+  // Summary sheet: total hours per customer
+  const totalsMap = {};
+  entries.forEach(t => {
+    const name = customerName(t.customerId);
+    totalsMap[name] = (totalsMap[name] || 0) + t.hours;
+  });
+  const summaryRows = Object.keys(totalsMap)
+    .sort((a, b) => a.localeCompare(b))
+    .map(name => ({ Customer: name, "Total Hours": Math.round(totalsMap[name] * 100) / 100 }));
+  const grandTotal = summaryRows.reduce((sum, r) => sum + r["Total Hours"], 0);
+  summaryRows.push({ Customer: "TOTAL", "Total Hours": Math.round(grandTotal * 100) / 100 });
+
+  const wb = XLSX.utils.book_new();
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  const wsDetail = XLSX.utils.json_to_sheet(detailRows);
+  wsSummary["!cols"] = [{ wch: 28 }, { wch: 14 }];
+  wsDetail["!cols"] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+  XLSX.utils.book_append_sheet(wb, wsDetail, "Detail");
+  XLSX.writeFile(wb, `time-report-${month}.xlsx`);
   closeModal();
 }
 
