@@ -113,10 +113,9 @@
   .row-actions { white-space: nowrap; margin-left: auto; }
   .icon-btn { background: none; padding: 6px; border-radius: 6px; display: inline-flex; }
   .icon-btn:hover { background: #f3f3f3; }
+  .priority-flag { font-size: 13px; }
 
   .summary { margin-top: 16px; font-size: 12px; color: var(--muted); }
-
-  .priority-flag { font-size: 13px; }
 
   .section-eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); margin-bottom: 8px; }
   .notes-wrap { margin-top: 40px; }
@@ -179,7 +178,7 @@
     <div class="header-left">
       <img src="apple-touch-icon.png" alt="Charles Ambleside" />
       <div>
-        <div class="eyebrow">Charles Ambleside · Client Operations</div>
+        <div class="eyebrow">Charles Ambleside &middot; Client Operations</div>
         <h1 class="serif">Action Log</h1>
       </div>
     </div>
@@ -188,8 +187,8 @@
       <button class="btn" id="btnAddProject">+ Project</button>
       <button class="btn btn-solid" id="btnAddAction">+ Action</button>
       <button class="btn btn-orange" id="btnAddNote">+ Note</button>
-      <button class="btn" id="btnAddTime">⏱ Time</button>
-      <button class="btn" id="btnPrint">🖶 Print</button>
+      <button class="btn" id="btnAddTime">Time</button>
+      <button class="btn" id="btnPrint">Print</button>
     </div>
   </div>
 
@@ -203,12 +202,12 @@
     <select id="sortBy">
       <option value="dueAsc">Due date (soonest)</option>
       <option value="dueDesc">Due date (latest)</option>
-      <option value="customer">Customer (A–Z)</option>
-      <option value="project">Project (A–Z)</option>
+      <option value="customer">Customer (A-Z)</option>
+      <option value="project">Project (A-Z)</option>
       <option value="status">Status</option>
       <option value="newest">Recently added</option>
     </select>
-    <button class="clear-link" id="btnClearFilters" style="display:none;">↺ Clear</button>
+    <button class="clear-link" id="btnClearFilters" style="display:none;">Clear</button>
   </div>
 
   <div class="card" id="actionsList"></div>
@@ -225,7 +224,7 @@
       <span>Time Log</span>
       <span style="display:flex; gap:6px;">
         <button class="btn no-print" id="btnToggleTime" style="text-transform:none; letter-spacing:normal; font-size:12px; padding:5px 10px;">Show entries</button>
-        <button class="btn no-print" id="btnTimeReport" style="text-transform:none; letter-spacing:normal; font-size:12px; padding:5px 10px;">📊 Time Log (Excel)</button>
+        <button class="btn no-print" id="btnTimeReport" style="text-transform:none; letter-spacing:normal; font-size:12px; padding:5px 10px;">Time Log (Excel)</button>
       </span>
     </div>
     <div class="card" id="timeCard" style="display:none;"></div>
@@ -234,8 +233,8 @@
   <div class="manage-grid no-print" id="manageGrid"></div>
 
   <div class="backup-row no-print">
-    <button class="btn" id="btnExport">⬇ Export</button>
-    <button class="btn" id="btnImport">⬆ Import</button>
+    <button class="btn" id="btnExport">Export</button>
+    <button class="btn" id="btnImport">Import</button>
     <input type="file" id="importFile" accept="application/json" style="display:none;" />
   </div>
 </div>
@@ -246,12 +245,12 @@
 
 <script>
 // ---------- Data ----------
-const STORE_KEY = "action-log-data";
-let state = { customers: [], projects: [], actions: [], notes: [], timeLogs: [] };
+var STORE_KEY = "action-log-data";
+var state = { customers: [], projects: [], actions: [], notes: [], timeLogs: [] };
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    var raw = localStorage.getItem(STORE_KEY);
     if (raw) state = JSON.parse(raw);
   } catch (e) { console.error("Load failed", e); }
   if (!state.customers) state.customers = [];
@@ -268,57 +267,61 @@ function saveState() {
 function uid(prefix) { return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 function fmtDate(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso + "T00:00:00");
+  if (!iso) return "-";
+  var d = new Date(iso + "T00:00:00");
   if (isNaN(d)) return iso;
   return d.toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const TAB_COLORS = ["#002B71", "#EF5A01", "#35558F", "#B84400", "#001A47", "#F58A44"];
-const STATUSES = ["Open", "Done"];
-const STATUS_COLOR = { Open: "#EF5A01", Done: "#7A7A72" };
+var TAB_COLORS = ["#002B71", "#EF5A01", "#35558F", "#B84400", "#001A47", "#F58A44"];
+var STATUSES = ["Open", "Done"];
+var STATUS_COLOR = { Open: "#EF5A01", Done: "#7A7A72" };
 
 function hashColor(id) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  var h = 0;
+  for (var i = 0; i < id.length; i++) { h = (h * 31 + id.charCodeAt(i)) >>> 0; }
   return TAB_COLORS[h % TAB_COLORS.length];
 }
-function customerName(id) { return state.customers.find(c => c.id === id)?.name || "—"; }
-function projectName(id) { return state.projects.find(p => p.id === id)?.name || "—"; }
+function customerName(id) {
+  var c = state.customers.find(function(c) { return c.id === id; });
+  return c ? c.name : "-";
+}
+function projectName(id) {
+  var p = state.projects.find(function(p) { return p.id === id; });
+  return p ? p.name : "-";
+}
 
 // ---------- Filters / sort ----------
-let filterCustomer = "all", filterProject = "all", filterStatus = "all", sortBy = "dueAsc";
+var filterCustomer = "all", filterProject = "all", filterStatus = "all", sortBy = "dueAsc";
 
 function visibleProjects() {
   if (filterCustomer === "all") return state.projects;
-  return state.projects.filter(p => p.customerId === filterCustomer);
+  return state.projects.filter(function(p) { return p.customerId === filterCustomer; });
 }
 function filteredActions() {
-  let list = state.actions.filter(a => {
+  var list = state.actions.filter(function(a) {
     if (filterCustomer !== "all" && a.customerId !== filterCustomer) return false;
     if (filterProject !== "all" && a.projectId !== filterProject) return false;
     if (filterStatus === "all" && a.status === "Done") return false;
     if (filterStatus !== "all" && a.status !== filterStatus) return false;
     return true;
   });
-  list.sort((a, b) => {
-    const pDiff = (b.priority ? 1 : 0) - (a.priority ? 1 : 0);
+  list.sort(function(a, b) {
+    var pDiff = (b.priority ? 1 : 0) - (a.priority ? 1 : 0);
     if (pDiff !== 0) return pDiff;
-    switch (sortBy) {
-      case "dueAsc": return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
-      case "dueDesc": return (b.dueDate || "0000").localeCompare(a.dueDate || "0000");
-      case "customer": return customerName(a.customerId).localeCompare(customerName(b.customerId));
-      case "project": return projectName(a.projectId).localeCompare(projectName(b.projectId));
-      case "status": return STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
-      case "newest": return b.entryNo - a.entryNo;
-      default: return 0;
-    }
+    if (sortBy === "dueAsc") return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
+    if (sortBy === "dueDesc") return (b.dueDate || "0000").localeCompare(a.dueDate || "0000");
+    if (sortBy === "customer") return customerName(a.customerId).localeCompare(customerName(b.customerId));
+    if (sortBy === "project") return projectName(a.projectId).localeCompare(projectName(b.projectId));
+    if (sortBy === "status") return STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
+    if (sortBy === "newest") return b.entryNo - a.entryNo;
+    return 0;
   });
   return list;
 }
 
 // ---------- Rendering ----------
-let expandedActions = new Set();
+var expandedActions = {};
 
 function render() {
   renderFilterSelects();
@@ -331,242 +334,250 @@ function render() {
 }
 
 function renderFilterSelects() {
-  const fc = document.getElementById("filterCustomer");
-  const fp = document.getElementById("filterProject");
-  const prevC = filterCustomer, prevP = filterProject;
+  var fc = document.getElementById("filterCustomer");
+  var fp = document.getElementById("filterProject");
+  var prevC = filterCustomer, prevP = filterProject;
 
-  fc.innerHTML = `<option value="all">Customer: All customers</option>` +
-    state.customers.map(c => `<option value="${c.id}">Customer: ${escapeHtml(c.name)}</option>`).join("");
+  var fcHtml = '<option value="all">Customer: All customers</option>';
+  state.customers.forEach(function(c) {
+    fcHtml += '<option value="' + c.id + '">Customer: ' + escapeHtml(c.name) + '</option>';
+  });
+  fc.innerHTML = fcHtml;
   fc.value = prevC;
 
-  fp.innerHTML = `<option value="all">Project: All projects</option>` +
-    visibleProjects().map(p => `<option value="${p.id}">Project: ${escapeHtml(p.name)}</option>`).join("");
+  var fpHtml = '<option value="all">Project: All projects</option>';
+  visibleProjects().forEach(function(p) {
+    fpHtml += '<option value="' + p.id + '">Project: ' + escapeHtml(p.name) + '</option>';
+  });
+  fp.innerHTML = fpHtml;
   fp.value = prevP;
 
   document.getElementById("filterStatus").value = filterStatus;
   document.getElementById("sortBy").value = sortBy;
 
-  const active = filterCustomer !== "all" || filterProject !== "all" || filterStatus !== "all";
+  var active = filterCustomer !== "all" || filterProject !== "all" || filterStatus !== "all";
   document.getElementById("btnClearFilters").style.display = active ? "inline-flex" : "none";
 }
 
 function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
+  var div = document.createElement("div");
+  div.textContent = str == null ? "" : str;
   return div.innerHTML;
 }
 
 function toggleAction(id) {
-  if (expandedActions.has(id)) expandedActions.delete(id);
-  else expandedActions.add(id);
+  if (expandedActions[id]) { delete expandedActions[id]; }
+  else { expandedActions[id] = true; }
   renderActionsList();
 }
 
 function renderActionsList() {
-  const container = document.getElementById("actionsList");
-  const list = filteredActions();
+  var container = document.getElementById("actionsList");
+  var list = filteredActions();
   if (list.length === 0) {
-    container.innerHTML = `<div class="empty-row">${
-      state.actions.length === 0
-        ? "No actions yet. Add a customer and project, then log your first action."
-        : "Nothing matches the current filters."
-    }</div>`;
+    var msg = state.actions.length === 0
+      ? "No actions yet. Add a customer and project, then log your first action."
+      : "Nothing matches the current filters.";
+    container.innerHTML = '<div class="empty-row">' + msg + '</div>';
     return;
   }
-  container.innerHTML = list.map(a => {
-    const open = expandedActions.has(a.id);
-    const priorityStyle = a.priority ? `border-left: 3px solid #EF5A01;` : `border-left: 3px solid transparent;`;
-    return `
-    <div class="action-item ${open ? "open" : ""}" style="${priorityStyle}">
-      <div class="action-main" onclick="toggleAction('${a.id}')">
-        <div class="action-desc">${a.priority ? '<span class="priority-flag" title="Priority">🚩</span> ' : ""}${escapeHtml(a.description)}</div>
-        <div class="action-meta"><span class="dot" style="background:${hashColor(a.customerId)}"></span>${escapeHtml(customerName(a.customerId))} · ${escapeHtml(projectName(a.projectId))}</div>
-      </div>
-      <div class="action-details">
-        <span class="status-tag" style="color:${STATUS_COLOR[a.status]};background:${STATUS_COLOR[a.status]}18">${a.status}</span>
-        <span class="due-cell">Due ${fmtDate(a.dueDate)}</span>
-        <span class="row-actions no-print">
-          <button class="icon-btn" onclick="event.stopPropagation(); openActionModal('${a.id}')" title="Edit">✎</button>
-          <button class="icon-btn" onclick="event.stopPropagation(); deleteAction('${a.id}')" title="Delete" style="color:#EF5A01">🗑</button>
-        </span>
-      </div>
-    </div>
-  `;
-  }).join("");
+  var html = "";
+  list.forEach(function(a) {
+    var open = !!expandedActions[a.id];
+    var priorityStyle = a.priority ? "border-left: 3px solid #EF5A01;" : "border-left: 3px solid transparent;";
+    var flag = a.priority ? '<span class="priority-flag" title="Priority">[!]</span> ' : "";
+    html += '<div class="action-item ' + (open ? "open" : "") + '" style="' + priorityStyle + '">';
+    html += '<div class="action-main" onclick="toggleAction(\'' + a.id + '\')">';
+    html += '<div class="action-desc">' + flag + escapeHtml(a.description) + '</div>';
+    html += '<div class="action-meta"><span class="dot" style="background:' + hashColor(a.customerId) + '"></span>' + escapeHtml(customerName(a.customerId)) + ' &middot; ' + escapeHtml(projectName(a.projectId)) + '</div>';
+    html += '</div>';
+    html += '<div class="action-details">';
+    html += '<span class="status-tag" style="color:' + STATUS_COLOR[a.status] + ';background:' + STATUS_COLOR[a.status] + '18">' + a.status + '</span>';
+    html += '<span class="due-cell">Due ' + fmtDate(a.dueDate) + '</span>';
+    html += '<span class="row-actions no-print">';
+    html += '<button class="icon-btn" onclick="event.stopPropagation(); openActionModal(\'' + a.id + '\')" title="Edit">Edit</button>';
+    html += '<button class="icon-btn" onclick="event.stopPropagation(); deleteAction(\'' + a.id + '\')" title="Delete" style="color:#EF5A01">Delete</button>';
+    html += '</span>';
+    html += '</div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
 }
 
 function renderSummary() {
-  const el = document.getElementById("summaryLine");
-  const list = filteredActions();
-  el.textContent = `${list.length} of ${state.actions.length} action${state.actions.length === 1 ? "" : "s"} shown · ${state.customers.length} customer${state.customers.length === 1 ? "" : "s"} · ${state.projects.length} project${state.projects.length === 1 ? "" : "s"}`;
+  var el = document.getElementById("summaryLine");
+  var list = filteredActions();
+  el.textContent = list.length + " of " + state.actions.length + " action" + (state.actions.length === 1 ? "" : "s") + " shown, " + state.customers.length + " customer" + (state.customers.length === 1 ? "" : "s") + ", " + state.projects.length + " project" + (state.projects.length === 1 ? "" : "s");
 }
 
 function renderNotes() {
-  const card = document.getElementById("notesCard");
-  const notes = state.notes.slice().sort((a, b) => b.entryNo - a.entryNo);
+  var card = document.getElementById("notesCard");
+  var notes = state.notes.slice().sort(function(a, b) { return b.entryNo - a.entryNo; });
   if (notes.length === 0) {
-    card.innerHTML = `<div style="padding:24px 16px;font-size:14px;color:#8A928C;">No standalone notes yet. Use this for anything that isn't tied to a customer or project.</div>`;
+    card.innerHTML = '<div style="padding:24px 16px;font-size:14px;color:#8A928C;">No standalone notes yet. Use this for anything that is not tied to a customer or project.</div>';
     return;
   }
-  card.innerHTML = notes.map(n => `
-    <div class="note-row">
-      <span class="note-no">${String(n.entryNo).padStart(3, "0")}</span>
-      <div style="flex:1">
-        <div class="note-text">${escapeHtml(n.text)}</div>
-        <div class="note-date">${fmtDate(n.createdAt)}</div>
-      </div>
-      <div class="no-print" style="display:flex;gap:4px;">
-        <button class="icon-btn" onclick="openNoteModal('${n.id}')" title="Edit">✎</button>
-        <button class="icon-btn" onclick="deleteNote('${n.id}')" title="Delete" style="color:#EF5A01">🗑</button>
-      </div>
-    </div>
-  `).join("");
+  var html = "";
+  notes.forEach(function(n) {
+    html += '<div class="note-row">';
+    html += '<span class="note-no">' + String(n.entryNo).padStart(3, "0") + '</span>';
+    html += '<div style="flex:1">';
+    html += '<div class="note-text">' + escapeHtml(n.text) + '</div>';
+    html += '<div class="note-date">' + fmtDate(n.createdAt) + '</div>';
+    html += '</div>';
+    html += '<div class="no-print" style="display:flex;gap:4px;">';
+    html += '<button class="icon-btn" onclick="openNoteModal(\'' + n.id + '\')" title="Edit">Edit</button>';
+    html += '<button class="icon-btn" onclick="deleteNote(\'' + n.id + '\')" title="Delete" style="color:#EF5A01">Delete</button>';
+    html += '</div>';
+    html += '</div>';
+  });
+  card.innerHTML = html;
 }
 
 function renderTimeLog() {
-  const card = document.getElementById("timeCard");
-  const logs = state.timeLogs.slice().sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  var card = document.getElementById("timeCard");
+  var logs = state.timeLogs.slice().sort(function(a, b) {
+    return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
+  });
   if (logs.length === 0) {
-    card.innerHTML = `<div style="padding:24px 16px;font-size:14px;color:#8A928C;">No time logged yet. Use ⏱ Time to log hours against a customer for a given day.</div>`;
+    card.innerHTML = '<div style="padding:24px 16px;font-size:14px;color:#8A928C;">No time logged yet. Use the Time button to log hours against a customer for a given day.</div>';
     return;
   }
-  card.innerHTML = logs.map(t => `
-    <div class="note-row">
-      <span class="note-no" style="width:82px;flex-shrink:0;">${fmtDate(t.date)}</span>
-      <div style="flex:1">
-        <div class="note-text" style="display:flex;align-items:center;gap:8px;">
-          <span class="dot" style="background:${hashColor(t.customerId)}"></span>
-          ${escapeHtml(customerName(t.customerId))}
-          <span class="due-cell" style="margin-left:auto;">${t.hours}h</span>
-        </div>
-        ${t.note ? `<div class="note-date" style="margin-top:4px;">${escapeHtml(t.note)}</div>` : ""}
-      </div>
-      <div class="no-print" style="display:flex;gap:4px;">
-        <button class="icon-btn" onclick="openTimeModal('${t.id}')" title="Edit">✎</button>
-        <button class="icon-btn" onclick="deleteTimeLog('${t.id}')" title="Delete" style="color:#EF5A01">🗑</button>
-      </div>
-    </div>
-  `).join("");
+  var html = "";
+  logs.forEach(function(t) {
+    html += '<div class="note-row">';
+    html += '<span class="note-no" style="width:82px;flex-shrink:0;">' + fmtDate(t.date) + '</span>';
+    html += '<div style="flex:1">';
+    html += '<div class="note-text" style="display:flex;align-items:center;gap:8px;">';
+    html += '<span class="dot" style="background:' + hashColor(t.customerId) + '"></span>';
+    html += escapeHtml(customerName(t.customerId));
+    html += '<span class="due-cell" style="margin-left:auto;">' + t.hours + 'h</span>';
+    html += '</div>';
+    if (t.note) { html += '<div class="note-date" style="margin-top:4px;">' + escapeHtml(t.note) + '</div>'; }
+    html += '</div>';
+    html += '<div class="no-print" style="display:flex;gap:4px;">';
+    html += '<button class="icon-btn" onclick="openTimeModal(\'' + t.id + '\')" title="Edit">Edit</button>';
+    html += '<button class="icon-btn" onclick="deleteTimeLog(\'' + t.id + '\')" title="Delete" style="color:#EF5A01">Delete</button>';
+    html += '</div>';
+    html += '</div>';
+  });
+  card.innerHTML = html;
 }
 
 function renderManageGrid() {
-  const grid = document.getElementById("manageGrid");
+  var grid = document.getElementById("manageGrid");
   if (state.customers.length === 0 && state.projects.length === 0) { grid.innerHTML = ""; return; }
-  grid.innerHTML = `
-    <div class="manage-card">
-      <div class="manage-title">Customers</div>
-      <div class="manage-list">
-        ${state.customers.length === 0 ? '<div style="font-size:14px;color:#8A928C">None yet.</div>' :
-          state.customers.map(c => `
-            <div class="manage-item">
-              <span class="left"><span class="dot" style="background:${hashColor(c.id)}"></span>${escapeHtml(c.name)}</span>
-              <button class="icon-btn" onclick="deleteCustomer('${c.id}')" style="color:#EF5A01">🗑</button>
-            </div>
-          `).join("")}
-      </div>
-    </div>
-    <div class="manage-card">
-      <div class="manage-title">Projects</div>
-      <div class="manage-list">
-        ${state.projects.length === 0 ? '<div style="font-size:14px;color:#8A928C">None yet.</div>' :
-          state.projects.map(p => `
-            <div class="manage-item">
-              <span class="left">${escapeHtml(p.name)} <span class="sub">· ${escapeHtml(customerName(p.customerId))}</span></span>
-              <button class="icon-btn" onclick="deleteProject('${p.id}')" style="color:#EF5A01">🗑</button>
-            </div>
-          `).join("")}
-      </div>
-    </div>
-  `;
+
+  var custHtml = state.customers.length === 0
+    ? '<div style="font-size:14px;color:#8A928C">None yet.</div>'
+    : state.customers.map(function(c) {
+        return '<div class="manage-item"><span class="left"><span class="dot" style="background:' + hashColor(c.id) + '"></span>' + escapeHtml(c.name) + '</span><button class="icon-btn" onclick="deleteCustomer(\'' + c.id + '\')" style="color:#EF5A01">Delete</button></div>';
+      }).join("");
+
+  var projHtml = state.projects.length === 0
+    ? '<div style="font-size:14px;color:#8A928C">None yet.</div>'
+    : state.projects.map(function(p) {
+        return '<div class="manage-item"><span class="left">' + escapeHtml(p.name) + ' <span class="sub">&middot; ' + escapeHtml(customerName(p.customerId)) + '</span></span><button class="icon-btn" onclick="deleteProject(\'' + p.id + '\')" style="color:#EF5A01">Delete</button></div>';
+      }).join("");
+
+  grid.innerHTML =
+    '<div class="manage-card"><div class="manage-title">Customers</div><div class="manage-list">' + custHtml + '</div></div>' +
+    '<div class="manage-card"><div class="manage-title">Projects</div><div class="manage-list">' + projHtml + '</div></div>';
 }
 
 // ---------- CRUD ----------
 function addCustomer(name) {
-  state.customers.push({ id: uid("cus"), name });
+  state.customers.push({ id: uid("cus"), name: name });
   render();
 }
 function addProject(name, customerId) {
-  state.projects.push({ id: uid("prj"), name, customerId });
+  state.projects.push({ id: uid("prj"), name: name, customerId: customerId });
   render();
 }
 function upsertAction(fields, editId) {
   if (editId) {
-    const idx = state.actions.findIndex(x => x.id === editId);
-    if (idx > -1) state.actions[idx] = { ...state.actions[idx], ...fields };
+    var idx = state.actions.findIndex(function(x) { return x.id === editId; });
+    if (idx > -1) state.actions[idx] = Object.assign({}, state.actions[idx], fields);
   } else {
-    const entryNo = state.actions.length ? Math.max(...state.actions.map(x => x.entryNo)) + 1 : 1;
-    state.actions.push({ id: uid("act"), entryNo, createdAt: todayISO(), ...fields });
+    var entryNo = state.actions.length ? Math.max.apply(null, state.actions.map(function(x) { return x.entryNo; })) + 1 : 1;
+    var newAction = Object.assign({ id: uid("act"), entryNo: entryNo, createdAt: todayISO() }, fields);
+    state.actions.push(newAction);
   }
   render();
 }
-function deleteAction(id) { state.actions = state.actions.filter(x => x.id !== id); render(); }
+function deleteAction(id) { state.actions = state.actions.filter(function(x) { return x.id !== id; }); render(); }
+
 function upsertNote(fields, editId) {
   if (editId) {
-    const idx = state.notes.findIndex(x => x.id === editId);
-    if (idx > -1) state.notes[idx] = { ...state.notes[idx], ...fields };
+    var idx = state.notes.findIndex(function(x) { return x.id === editId; });
+    if (idx > -1) state.notes[idx] = Object.assign({}, state.notes[idx], fields);
   } else {
-    const entryNo = state.notes.length ? Math.max(...state.notes.map(x => x.entryNo)) + 1 : 1;
-    state.notes.push({ id: uid("note"), entryNo, createdAt: todayISO(), ...fields });
+    var entryNo = state.notes.length ? Math.max.apply(null, state.notes.map(function(x) { return x.entryNo; })) + 1 : 1;
+    var newNote = Object.assign({ id: uid("note"), entryNo: entryNo, createdAt: todayISO() }, fields);
+    state.notes.push(newNote);
   }
   render();
 }
-function deleteNote(id) { state.notes = state.notes.filter(x => x.id !== id); render(); }
+function deleteNote(id) { state.notes = state.notes.filter(function(x) { return x.id !== id; }); render(); }
+
 function upsertTimeLog(fields, editId) {
   if (editId) {
-    const idx = state.timeLogs.findIndex(x => x.id === editId);
-    if (idx > -1) state.timeLogs[idx] = { ...state.timeLogs[idx], ...fields };
+    var idx = state.timeLogs.findIndex(function(x) { return x.id === editId; });
+    if (idx > -1) state.timeLogs[idx] = Object.assign({}, state.timeLogs[idx], fields);
   } else {
-    state.timeLogs.push({ id: uid("time"), createdAt: todayISO(), ...fields });
+    var newLog = Object.assign({ id: uid("time"), createdAt: todayISO() }, fields);
+    state.timeLogs.push(newLog);
   }
   render();
 }
-function deleteTimeLog(id) { state.timeLogs = state.timeLogs.filter(x => x.id !== id); render(); }
+function deleteTimeLog(id) { state.timeLogs = state.timeLogs.filter(function(x) { return x.id !== id; }); render(); }
+
 function deleteCustomer(id) {
-  state.customers = state.customers.filter(x => x.id !== id);
-  state.projects = state.projects.filter(x => x.customerId !== id);
-  state.actions = state.actions.filter(x => x.customerId !== id);
-  state.timeLogs = state.timeLogs.filter(x => x.customerId !== id);
+  state.customers = state.customers.filter(function(x) { return x.id !== id; });
+  state.projects = state.projects.filter(function(x) { return x.customerId !== id; });
+  state.actions = state.actions.filter(function(x) { return x.customerId !== id; });
+  state.timeLogs = state.timeLogs.filter(function(x) { return x.customerId !== id; });
   if (filterCustomer === id) filterCustomer = "all";
   render();
 }
 function deleteProject(id) {
-  state.projects = state.projects.filter(x => x.id !== id);
-  state.actions = state.actions.filter(x => x.projectId !== id);
+  state.projects = state.projects.filter(function(x) { return x.id !== id; });
+  state.actions = state.actions.filter(function(x) { return x.projectId !== id; });
   if (filterProject === id) filterProject = "all";
   render();
 }
 
 // ---------- Filter/sort event wiring ----------
-document.getElementById("filterCustomer").addEventListener("change", e => { filterCustomer = e.target.value; filterProject = "all"; render(); });
-document.getElementById("filterProject").addEventListener("change", e => { filterProject = e.target.value; render(); });
-document.getElementById("filterStatus").addEventListener("change", e => { filterStatus = e.target.value; render(); });
-document.getElementById("sortBy").addEventListener("change", e => { sortBy = e.target.value; render(); });
-document.getElementById("btnClearFilters").addEventListener("click", () => { filterCustomer = "all"; filterProject = "all"; filterStatus = "all"; render(); });
-document.getElementById("btnPrint").addEventListener("click", () => window.print());
+document.getElementById("filterCustomer").addEventListener("change", function(e) { filterCustomer = e.target.value; filterProject = "all"; render(); });
+document.getElementById("filterProject").addEventListener("change", function(e) { filterProject = e.target.value; render(); });
+document.getElementById("filterStatus").addEventListener("change", function(e) { filterStatus = e.target.value; render(); });
+document.getElementById("sortBy").addEventListener("change", function(e) { sortBy = e.target.value; render(); });
+document.getElementById("btnClearFilters").addEventListener("click", function() { filterCustomer = "all"; filterProject = "all"; filterStatus = "all"; render(); });
+document.getElementById("btnPrint").addEventListener("click", function() { window.print(); });
 
-document.getElementById("btnExport").addEventListener("click", () => {
-  const payload = JSON.stringify(state, null, 2);
-  const blob = new Blob([payload], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const stamp = new Date().toISOString().slice(0, 10);
+document.getElementById("btnExport").addEventListener("click", function() {
+  var payload = JSON.stringify(state, null, 2);
+  var blob = new Blob([payload], { type: "application/json" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  var stamp = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `action-log-backup-${stamp}.json`;
+  a.download = "action-log-backup-" + stamp + ".json";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
 
-document.getElementById("btnImport").addEventListener("click", () => {
+document.getElementById("btnImport").addEventListener("click", function() {
   document.getElementById("importFile").click();
 });
-document.getElementById("importFile").addEventListener("change", (e) => {
-  const file = e.target.files[0];
+document.getElementById("importFile").addEventListener("change", function(e) {
+  var file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    let parsed;
+  var reader = new FileReader();
+  reader.onload = function(evt) {
+    var parsed;
     try {
       parsed = JSON.parse(evt.target.result);
     } catch (err) {
@@ -574,17 +585,20 @@ document.getElementById("importFile").addEventListener("change", (e) => {
       e.target.value = "";
       return;
     }
-    const looksValid = parsed && ["customers", "projects", "actions", "notes"].every(
-      key => Array.isArray(parsed[key])
-    );
+    var looksValid = parsed && ["customers", "projects", "actions", "notes"].every(function(key) {
+      return Array.isArray(parsed[key]);
+    });
     if (!looksValid) {
       alert("That file doesn't look like an Action Log backup.");
       e.target.value = "";
       return;
     }
     if (!Array.isArray(parsed.timeLogs)) parsed.timeLogs = [];
-    const proceed = confirm(
-      `Import this backup? It contains ${parsed.customers.length} customers, ${parsed.projects.length} projects, ${parsed.actions.length} actions, ${parsed.notes.length} notes, ${parsed.timeLogs.length} time entries.\n\nThis will replace everything currently in the app.`
+    var proceed = confirm(
+      "Import this backup? It contains " + parsed.customers.length + " customers, " +
+      parsed.projects.length + " projects, " + parsed.actions.length + " actions, " +
+      parsed.notes.length + " notes, " + parsed.timeLogs.length + " time entries.\n\n" +
+      "This will replace everything currently in the app."
     );
     if (proceed) {
       state = parsed;
@@ -596,13 +610,13 @@ document.getElementById("importFile").addEventListener("change", (e) => {
   reader.readAsText(file);
 });
 
-document.getElementById("btnAddNote").addEventListener("click", () => openNoteModal());
-document.getElementById("btnAddTime").addEventListener("click", () => openTimeModal());
-document.getElementById("btnTimeReport").addEventListener("click", () => generateTimeReport());
-document.getElementById("btnToggleTime").addEventListener("click", () => {
-  const card = document.getElementById("timeCard");
-  const btn = document.getElementById("btnToggleTime");
-  const showing = card.style.display !== "none";
+document.getElementById("btnAddNote").addEventListener("click", function() { openNoteModal(); });
+document.getElementById("btnAddTime").addEventListener("click", function() { openTimeModal(); });
+document.getElementById("btnTimeReport").addEventListener("click", function() { generateTimeReport(); });
+document.getElementById("btnToggleTime").addEventListener("click", function() {
+  var card = document.getElementById("timeCard");
+  var btn = document.getElementById("btnToggleTime");
+  var showing = card.style.display !== "none";
   card.style.display = showing ? "none" : "block";
   btn.textContent = showing ? "Show entries" : "Hide entries";
 });
@@ -615,50 +629,42 @@ function openModal(html) {
 function closeModal() {
   document.getElementById("modalOverlay").classList.remove("open");
 }
-document.getElementById("modalOverlay").addEventListener("click", (e) => {
+document.getElementById("modalOverlay").addEventListener("click", function(e) {
   if (e.target.id === "modalOverlay") closeModal();
 });
 
-document.getElementById("btnAddCustomer").addEventListener("click", () => openCustomerModal());
-document.getElementById("btnAddProject").addEventListener("click", () => openProjectModal());
-document.getElementById("btnAddAction").addEventListener("click", () => openActionModal());
+document.getElementById("btnAddCustomer").addEventListener("click", function() { openCustomerModal(); });
+document.getElementById("btnAddProject").addEventListener("click", function() { openProjectModal(); });
+document.getElementById("btnAddAction").addEventListener("click", function() { openActionModal(); });
 
 function openCustomerModal() {
-  openModal(`
-    <div class="modal-head"><h2 class="serif">Add customer</h2><button class="modal-close" onclick="closeModal()">×</button></div>
-    <div class="field"><label>Customer name</label><input id="mName" placeholder="e.g. Acme Foods" autofocus /></div>
-    <div class="error-text" id="mError" style="display:none;"></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-solid" onclick="submitCustomer()">Save</button>
-    </div>
-  `);
+  var html = '<div class="modal-head"><h2 class="serif">Add customer</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+  html += '<div class="field"><label>Customer name</label><input id="mName" placeholder="e.g. Acme Foods" autofocus /></div>';
+  html += '<div class="error-text" id="mError" style="display:none;"></div>';
+  html += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-solid" onclick="submitCustomer()">Save</button></div>';
+  openModal(html);
 }
 function submitCustomer() {
-  const name = document.getElementById("mName").value.trim();
+  var name = document.getElementById("mName").value.trim();
   if (!name) return showModalError("Enter a customer name.");
   addCustomer(name);
   closeModal();
 }
 
 function openProjectModal() {
-  const custOptions = state.customers.length
-    ? state.customers.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
-    : `<option value="">No customers yet</option>`;
-  openModal(`
-    <div class="modal-head"><h2 class="serif">Add project</h2><button class="modal-close" onclick="closeModal()">×</button></div>
-    <div class="field"><label>Customer</label><select id="mCustomer">${custOptions}</select></div>
-    <div class="field"><label>Project name</label><input id="mName" placeholder="e.g. Reb A bioconversion trial" autofocus /></div>
-    <div class="error-text" id="mError" style="display:none;"></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-solid" onclick="submitProject()">Save</button>
-    </div>
-  `);
+  var custOptions = state.customers.length
+    ? state.customers.map(function(c) { return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>'; }).join("")
+    : '<option value="">No customers yet</option>';
+  var html = '<div class="modal-head"><h2 class="serif">Add project</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+  html += '<div class="field"><label>Customer</label><select id="mCustomer">' + custOptions + '</select></div>';
+  html += '<div class="field"><label>Project name</label><input id="mName" placeholder="e.g. Reb A bioconversion trial" autofocus /></div>';
+  html += '<div class="error-text" id="mError" style="display:none;"></div>';
+  html += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-solid" onclick="submitProject()">Save</button></div>';
+  openModal(html);
 }
 function submitProject() {
-  const name = document.getElementById("mName").value.trim();
-  const customerId = document.getElementById("mCustomer").value;
+  var name = document.getElementById("mName").value.trim();
+  var customerId = document.getElementById("mCustomer").value;
   if (!name) return showModalError("Enter a project name.");
   if (!customerId) return showModalError("Choose a customer first.");
   addProject(name, customerId);
@@ -666,25 +672,145 @@ function submitProject() {
 }
 
 function openActionModal(editId) {
-  const editing = editId ? state.actions.find(a => a.id === editId) : null;
-  const custId = editing?.customerId || state.customers[0]?.id || "";
+  var editing = editId ? state.actions.find(function(a) { return a.id === editId; }) : null;
+  var custId = (editing && editing.customerId) || (state.customers[0] && state.customers[0].id) || "";
   renderActionModalBody(custId, editing, editId);
 }
 function renderActionModalBody(selectedCustomerId, editing, editId) {
-  const custOptions = state.customers.length
-    ? state.customers.map(c => `<option value="${c.id}" ${c.id === selectedCustomerId ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")
-    : `<option value="">No customers yet</option>`;
-  const projForCust = state.projects.filter(p => p.customerId === selectedCustomerId);
-  const selectedProjectId = editing?.projectId || projForCust[0]?.id || "";
-  const projOptions = `<option value="">Select project</option>` +
-    projForCust.map(p => `<option value="${p.id}" ${p.id === selectedProjectId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("");
-  const statusOptions = STATUSES.map(s => `<option value="${s}" ${editing?.status === s ? "selected" : ""}>${s}</option>`).join("");
+  var custOptions = state.customers.length
+    ? state.customers.map(function(c) {
+        return '<option value="' + c.id + '" ' + (c.id === selectedCustomerId ? "selected" : "") + '>' + escapeHtml(c.name) + '</option>';
+      }).join("")
+    : '<option value="">No customers yet</option>';
+  var projForCust = state.projects.filter(function(p) { return p.customerId === selectedCustomerId; });
+  var selectedProjectId = (editing && editing.projectId) || (projForCust[0] && projForCust[0].id) || "";
+  var projOptions = '<option value="">Select project</option>' + projForCust.map(function(p) {
+    return '<option value="' + p.id + '" ' + (p.id === selectedProjectId ? "selected" : "") + '>' + escapeHtml(p.name) + '</option>';
+  }).join("");
+  var statusOptions = STATUSES.map(function(s) {
+    return '<option value="' + s + '" ' + (editing && editing.status === s ? "selected" : "") + '>' + s + '</option>';
+  }).join("");
 
-  openModal(`
-    <div class="modal-head"><h2 class="serif">${editing ? "Edit action" : "Add action"}</h2><button class="modal-close" onclick="closeModal()">×</button></div>
-    <div class="field"><label>Customer</label><select id="mCustomer" onchange="onActionCustomerChange('${editId || ""}')">${custOptions}</select></div>
-    <div class="field"><label>Project</label><select id="mProject">${projOptions}</select></div>
-    <div class="field"><label>Action</label><textarea id="mDescription" rows="3" placeholder="What needs to happen?">${editing ? escapeHtml(editing.description) : ""}</textarea></div>
-    <div class="field-row">
-      <div class="field"><label>Status</label><select id="mStatus">${statusOptions}</select></div>
-      <div
+  var html = '<div class="modal-head"><h2 class="serif">' + (editing ? "Edit action" : "Add action") + '</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+  html += '<div class="field"><label>Customer</label><select id="mCustomer" onchange="onActionCustomerChange(\'' + (editId || "") + '\')">' + custOptions + '</select></div>';
+  html += '<div class="field"><label>Project</label><select id="mProject">' + projOptions + '</select></div>';
+  html += '<div class="field"><label>Action</label><textarea id="mDescription" rows="3" placeholder="What needs to happen?">' + (editing ? escapeHtml(editing.description) : "") + '</textarea></div>';
+  html += '<div class="field-row"><div class="field"><label>Status</label><select id="mStatus">' + statusOptions + '</select></div>';
+  html += '<div class="field"><label>Due date</label><input type="date" id="mDueDate" value="' + ((editing && editing.dueDate) || "") + '" /></div></div>';
+  html += '<div class="field" style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="mPriority" style="width:auto;" ' + (editing && editing.priority ? "checked" : "") + ' /><label for="mPriority" style="margin:0;">Mark as priority</label></div>';
+  html += '<div class="error-text" id="mError" style="display:none;"></div>';
+  html += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-solid" onclick="submitAction(\'' + (editId || "") + '\')">Save</button></div>';
+  openModal(html);
+}
+function onActionCustomerChange(editId) {
+  var custId = document.getElementById("mCustomer").value;
+  var editing = editId ? state.actions.find(function(a) { return a.id === editId; }) : null;
+  renderActionModalBody(custId, editing, editId);
+}
+function submitAction(editId) {
+  var customerId = document.getElementById("mCustomer").value;
+  var projectId = document.getElementById("mProject").value;
+  var description = document.getElementById("mDescription").value.trim();
+  var status = document.getElementById("mStatus").value;
+  var dueDate = document.getElementById("mDueDate").value;
+  var priority = document.getElementById("mPriority").checked;
+  if (!customerId) return showModalError("Choose a customer.");
+  if (!projectId) return showModalError("Choose a project.");
+  if (!description) return showModalError("Describe the action.");
+  upsertAction({ customerId: customerId, projectId: projectId, description: description, status: status, dueDate: dueDate, priority: priority }, editId || null);
+  closeModal();
+}
+
+function openNoteModal(editId) {
+  var editing = editId ? state.notes.find(function(n) { return n.id === editId; }) : null;
+  var html = '<div class="modal-head"><h2 class="serif">' + (editing ? "Edit note" : "Add note") + '</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+  html += '<div class="field"><label>Note</label><textarea id="mNoteText" rows="5" placeholder="Anything worth keeping that is not tied to a customer or project" autofocus>' + (editing ? escapeHtml(editing.text) : "") + '</textarea></div>';
+  html += '<div class="error-text" id="mError" style="display:none;"></div>';
+  html += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-solid" onclick="submitNote(\'' + (editId || "") + '\')">Save</button></div>';
+  openModal(html);
+}
+function submitNote(editId) {
+  var text = document.getElementById("mNoteText").value.trim();
+  if (!text) return showModalError("Write something first.");
+  upsertNote({ text: text }, editId || null);
+  closeModal();
+}
+
+function openTimeModal(editId) {
+  var editing = editId ? state.timeLogs.find(function(t) { return t.id === editId; }) : null;
+  var custOptions = state.customers.length
+    ? state.customers.map(function(c) {
+        return '<option value="' + c.id + '" ' + (editing && editing.customerId === c.id ? "selected" : "") + '>' + escapeHtml(c.name) + '</option>';
+      }).join("")
+    : '<option value="">No customers yet</option>';
+  var html = '<div class="modal-head"><h2 class="serif">' + (editing ? "Edit time entry" : "Log time") + '</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+  html += '<div class="field"><label>Customer</label><select id="mCustomer">' + custOptions + '</select></div>';
+  html += '<div class="field-row"><div class="field"><label>Date</label><input type="date" id="mDate" value="' + ((editing && editing.date) || todayISO()) + '" /></div>';
+  html += '<div class="field"><label>Hours</label><input type="number" id="mHours" step="0.25" min="0" placeholder="e.g. 1.5" value="' + (editing && editing.hours != null ? editing.hours : "") + '" /></div></div>';
+  html += '<div class="field"><label>Note (optional)</label><input id="mTimeNote" placeholder="What was the time for?" value="' + (editing ? escapeHtml(editing.note || "") : "") + '" /></div>';
+  html += '<div class="error-text" id="mError" style="display:none;"></div>';
+  html += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-solid" onclick="submitTime(\'' + (editId || "") + '\')">Save</button></div>';
+  openModal(html);
+}
+function submitTime(editId) {
+  var customerId = document.getElementById("mCustomer").value;
+  var date = document.getElementById("mDate").value;
+  var hours = parseFloat(document.getElementById("mHours").value);
+  var note = document.getElementById("mTimeNote").value.trim();
+  if (!customerId) return showModalError("Choose a customer.");
+  if (!date) return showModalError("Pick a date.");
+  if (!hours || hours <= 0) return showModalError("Enter hours greater than 0.");
+  upsertTimeLog({ customerId: customerId, date: date, hours: hours, note: note }, editId || null);
+  closeModal();
+}
+
+function generateTimeReport() {
+  var entries = state.timeLogs;
+  if (entries.length === 0) { alert("No time logged yet."); return; }
+  if (typeof XLSX === "undefined") { alert("Excel library failed to load - check your connection and try again."); return; }
+
+  var detailRows = entries.slice().sort(function(a, b) {
+    return a.date.localeCompare(b.date) || customerName(a.customerId).localeCompare(customerName(b.customerId));
+  }).map(function(t) {
+    return { Date: t.date, Customer: customerName(t.customerId), Hours: t.hours, Note: t.note || "" };
+  });
+
+  var totalsMap = {};
+  entries.forEach(function(t) {
+    var key = t.date.slice(0, 7) + "|" + customerName(t.customerId);
+    totalsMap[key] = (totalsMap[key] || 0) + t.hours;
+  });
+  var summaryRows = Object.keys(totalsMap).sort().map(function(key) {
+    var parts = key.split("|");
+    return { Month: parts[0], Customer: parts[1], "Total Hours": Math.round(totalsMap[key] * 100) / 100 };
+  });
+  var grandTotal = entries.reduce(function(sum, t) { return sum + t.hours; }, 0);
+  summaryRows.push({ Month: "", Customer: "GRAND TOTAL", "Total Hours": Math.round(grandTotal * 100) / 100 });
+
+  var wb = XLSX.utils.book_new();
+  var wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  var wsDetail = XLSX.utils.json_to_sheet(detailRows);
+  wsSummary["!cols"] = [{ wch: 10 }, { wch: 28 }, { wch: 14 }];
+  wsDetail["!cols"] = [{ wch: 12 }, { wch: 28 }, { wch: 10 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+  XLSX.utils.book_append_sheet(wb, wsDetail, "Detail");
+  XLSX.writeFile(wb, "time-log-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+}
+
+function showModalError(msg) {
+  var el = document.getElementById("mError");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+// ---------- Init ----------
+loadState();
+if (state.customers.length === 0 && state.projects.length === 0 && state.actions.length === 0 && state.notes.length === 0) {
+  state.customers = ["Mitsui", "KH Roberts", "Wostevia", "MRP Ingredients"].map(function(name) {
+    return { id: uid("cus"), name: name };
+  });
+}
+render();
+</script>
+</body>
+</html>
