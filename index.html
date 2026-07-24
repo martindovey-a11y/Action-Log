@@ -146,6 +146,17 @@
   }
   .modal-overlay.open { display: flex; }
   .modal { width: 100%; max-width: 420px; background: #fff; border-radius: 10px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+  .modal.wide { max-width: 640px; }
+  .time-grid-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--line-soft);
+  }
+  .time-grid-row:last-child { border-bottom: none; }
+  .time-grid-name { flex: 1; font-size: 14px; display: flex; align-items: center; min-width: 0; }
+  .time-grid-name span.label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .time-grid-hours { width: 72px; flex-shrink: 0; }
+  .time-grid-note { flex: 1; min-width: 0; }
+  .time-grid-row input { padding: 6px 8px; font-size: 13px; }
   .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .modal-head h2 { font-size: 18px; font-weight: 600; margin: 0; }
   .modal-close { background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 4px; }
@@ -611,7 +622,7 @@ document.getElementById("importFile").addEventListener("change", function(e) {
 });
 
 document.getElementById("btnAddNote").addEventListener("click", function() { openNoteModal(); });
-document.getElementById("btnAddTime").addEventListener("click", function() { openTimeModal(); });
+document.getElementById("btnAddTime").addEventListener("click", function() { openTimeGridModal(todayISO()); });
 document.getElementById("btnTimeReport").addEventListener("click", function() { generateTimeReport(); });
 document.getElementById("btnToggleTime").addEventListener("click", function() {
   var card = document.getElementById("timeCard");
@@ -622,8 +633,10 @@ document.getElementById("btnToggleTime").addEventListener("click", function() {
 });
 
 // ---------- Modals ----------
-function openModal(html) {
-  document.getElementById("modalBox").innerHTML = html;
+function openModal(html, wide) {
+  var box = document.getElementById("modalBox");
+  box.innerHTML = html;
+  box.classList.toggle("wide", !!wide);
   document.getElementById("modalOverlay").classList.add("open");
 }
 function closeModal() {
@@ -761,6 +774,65 @@ function submitTime(editId) {
   if (!date) return showModalError("Pick a date.");
   if (!hours || hours <= 0) return showModalError("Enter hours greater than 0.");
   upsertTimeLog({ customerId: customerId, date: date, hours: hours, note: note }, editId || null);
+  closeModal();
+}
+
+function findTimeEntry(customerId, date) {
+  return state.timeLogs.find(function(t) { return t.customerId === customerId && t.date === date; });
+}
+
+function openTimeGridModal(date) {
+  if (state.customers.length === 0) {
+    var empty = '<div class="modal-head"><h2 class="serif">Log time</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+    empty += '<div style="font-size:14px;color:#8A928C;">Add a customer first, then come back to log time.</div>';
+    empty += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>';
+    openModal(empty, true);
+    return;
+  }
+
+  var html = '<div class="modal-head"><h2 class="serif">Log time</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>';
+  html += '<div class="field"><label>Date</label><input type="date" id="gDate" value="' + date + '" onchange="openTimeGridModal(this.value)" /></div>';
+  html += '<div style="max-height:50vh; overflow-y:auto; margin-top:8px;">';
+
+  state.customers.forEach(function(c) {
+    var existing = findTimeEntry(c.id, date);
+    var hoursVal = existing ? existing.hours : "";
+    var noteVal = existing ? escapeHtml(existing.note || "") : "";
+    html += '<div class="time-grid-row">';
+    html += '<div class="time-grid-name"><span class="dot" style="background:' + hashColor(c.id) + '"></span><span class="label">' + escapeHtml(c.name) + '</span></div>';
+    html += '<input type="number" class="time-grid-hours" step="0.25" min="0" placeholder="hrs" data-cust="' + c.id + '" value="' + hoursVal + '" />';
+    html += '<input type="text" class="time-grid-note" placeholder="Note (optional)" data-cust="' + c.id + '" value="' + noteVal + '" />';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  html += '<div class="error-text" id="mError" style="display:none;"></div>';
+  html += '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-solid" onclick="saveTimeGrid(\'' + date + '\')">Save all</button></div>';
+  openModal(html, true);
+}
+
+function saveTimeGrid(date) {
+  var hourInputs = document.querySelectorAll(".time-grid-hours");
+  var savedCount = 0;
+  hourInputs.forEach(function(input) {
+    var customerId = input.getAttribute("data-cust");
+    var hoursVal = parseFloat(input.value);
+    if (!hoursVal || hoursVal <= 0) return;
+    var noteInput = document.querySelector('.time-grid-note[data-cust="' + customerId + '"]');
+    var note = noteInput ? noteInput.value.trim() : "";
+    var existing = findTimeEntry(customerId, date);
+    if (existing) {
+      existing.hours = hoursVal;
+      existing.note = note;
+    } else {
+      state.timeLogs.push({ id: uid("time"), customerId: customerId, date: date, hours: hoursVal, note: note, createdAt: todayISO() });
+    }
+    savedCount++;
+  });
+  if (savedCount === 0) {
+    return showModalError("Enter hours for at least one customer.");
+  }
+  render();
   closeModal();
 }
 
