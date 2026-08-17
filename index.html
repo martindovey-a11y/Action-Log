@@ -77,19 +77,23 @@
   .btn-orange { color: var(--orange); }
   .btn-solid { background: var(--navy); color: #fff; border: none; }
 
-  .filters {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-    margin-bottom: 24px; padding: 8px; border-radius: 10px;
-    background: #fff; border: 1px solid var(--line);
+  .chip-row {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px;
+    -webkit-overflow-scrolling: touch;
   }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; padding: 7px 14px; font-size: 13px; border-radius: 999px;
+    border: 1px solid var(--line); background: #fff; color: var(--navy);
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .chip .dot { margin-right: 0; }
+
   select {
     font-family: 'Inter', sans-serif; font-size: 12px; border-radius: 6px;
     padding: 4px 8px; border: 1px solid var(--line); background: #fff; color: var(--navy);
     max-width: 140px;
-  }
-  .clear-link {
-    font-size: 12px; display: inline-flex; align-items: center; gap: 4px;
-    color: var(--orange); background: none; padding: 4px 6px;
   }
 
   .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; }
@@ -194,36 +198,23 @@
       </div>
     </div>
     <div class="btn-row no-print">
-      <button class="btn" id="btnAddCustomer">+ Customer</button>
-      <button class="btn" id="btnAddProject">+ Project</button>
       <button class="btn btn-solid" id="btnAddAction">+ Action</button>
       <button class="btn btn-orange" id="btnAddNote">+ Note</button>
       <button class="btn" id="btnAddTime">Time</button>
-      <button class="btn" id="btnPrint">Print</button>
     </div>
   </div>
 
-  <div class="filters no-print">
-    <select id="filterCustomer"></select>
-    <select id="filterProject"></select>
-    <select id="filterStatus">
-      <option value="all">Status: All (Open)</option>
-      <option value="Done">Status: Done</option>
-    </select>
-    <select id="sortBy">
-      <option value="dueAsc">Due date (soonest)</option>
-      <option value="dueDesc">Due date (latest)</option>
-      <option value="customer">Customer (A-Z)</option>
-      <option value="project">Project (A-Z)</option>
-      <option value="status">Status</option>
-      <option value="newest">Recently added</option>
-    </select>
-    <button class="clear-link" id="btnClearFilters" style="display:none;">Clear</button>
-  </div>
+  <div class="chip-row no-print" id="customerChips"></div>
 
   <div class="card" id="actionsList"></div>
 
   <div class="summary no-print" id="summaryLine"></div>
+
+  <div class="btn-row no-print" style="margin-top:16px;">
+    <button class="btn" id="btnAddCustomer">+ Customer</button>
+    <button class="btn" id="btnAddProject">+ Project</button>
+    <button class="btn" id="btnPrint">Print</button>
+  </div>
 
   <div class="notes-wrap">
     <div class="section-eyebrow">Notes</div>
@@ -302,31 +293,19 @@ function projectName(id) {
   return p ? p.name : "-";
 }
 
-// ---------- Filters / sort ----------
-var filterCustomer = "all", filterProject = "all", filterStatus = "all", sortBy = "dueAsc";
+// ---------- Filters ----------
+var filterCustomer = "all";
 
-function visibleProjects() {
-  if (filterCustomer === "all") return state.projects;
-  return state.projects.filter(function(p) { return p.customerId === filterCustomer; });
-}
 function filteredActions() {
   var list = state.actions.filter(function(a) {
     if (filterCustomer !== "all" && a.customerId !== filterCustomer) return false;
-    if (filterProject !== "all" && a.projectId !== filterProject) return false;
-    if (filterStatus === "all" && a.status === "Done") return false;
-    if (filterStatus !== "all" && a.status !== filterStatus) return false;
+    if (a.status === "Done") return false;
     return true;
   });
   list.sort(function(a, b) {
     var pDiff = (b.priority ? 1 : 0) - (a.priority ? 1 : 0);
     if (pDiff !== 0) return pDiff;
-    if (sortBy === "dueAsc") return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
-    if (sortBy === "dueDesc") return (b.dueDate || "0000").localeCompare(a.dueDate || "0000");
-    if (sortBy === "customer") return customerName(a.customerId).localeCompare(customerName(b.customerId));
-    if (sortBy === "project") return projectName(a.projectId).localeCompare(projectName(b.projectId));
-    if (sortBy === "status") return STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
-    if (sortBy === "newest") return b.entryNo - a.entryNo;
-    return 0;
+    return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
   });
   return list;
 }
@@ -335,7 +314,7 @@ function filteredActions() {
 var expandedActions = {};
 
 function render() {
-  renderFilterSelects();
+  renderCustomerChips();
   renderActionsList();
   renderSummary();
   renderNotes();
@@ -344,30 +323,20 @@ function render() {
   saveState();
 }
 
-function renderFilterSelects() {
-  var fc = document.getElementById("filterCustomer");
-  var fp = document.getElementById("filterProject");
-  var prevC = filterCustomer, prevP = filterProject;
-
-  var fcHtml = '<option value="all">Customer: All customers</option>';
+function renderCustomerChips() {
+  var wrap = document.getElementById("customerChips");
+  var html = '<button class="chip ' + (filterCustomer === "all" ? "active" : "") + '" onclick="setCustomerFilter(\'all\')">All customers</button>';
   state.customers.forEach(function(c) {
-    fcHtml += '<option value="' + c.id + '">Customer: ' + escapeHtml(c.name) + '</option>';
+    var active = filterCustomer === c.id;
+    html += '<button class="chip ' + (active ? "active" : "") + '" onclick="setCustomerFilter(\'' + c.id + '\')">';
+    if (!active) html += '<span class="dot" style="background:' + hashColor(c.id) + '"></span>';
+    html += escapeHtml(c.name) + '</button>';
   });
-  fc.innerHTML = fcHtml;
-  fc.value = prevC;
-
-  var fpHtml = '<option value="all">Project: All projects</option>';
-  visibleProjects().forEach(function(p) {
-    fpHtml += '<option value="' + p.id + '">Project: ' + escapeHtml(p.name) + '</option>';
-  });
-  fp.innerHTML = fpHtml;
-  fp.value = prevP;
-
-  document.getElementById("filterStatus").value = filterStatus;
-  document.getElementById("sortBy").value = sortBy;
-
-  var active = filterCustomer !== "all" || filterProject !== "all" || filterStatus !== "all";
-  document.getElementById("btnClearFilters").style.display = active ? "inline-flex" : "none";
+  wrap.innerHTML = html;
+}
+function setCustomerFilter(id) {
+  filterCustomer = id;
+  render();
 }
 
 function escapeHtml(str) {
@@ -554,16 +523,9 @@ function deleteCustomer(id) {
 function deleteProject(id) {
   state.projects = state.projects.filter(function(x) { return x.id !== id; });
   state.actions = state.actions.filter(function(x) { return x.projectId !== id; });
-  if (filterProject === id) filterProject = "all";
   render();
 }
 
-// ---------- Filter/sort event wiring ----------
-document.getElementById("filterCustomer").addEventListener("change", function(e) { filterCustomer = e.target.value; filterProject = "all"; render(); });
-document.getElementById("filterProject").addEventListener("change", function(e) { filterProject = e.target.value; render(); });
-document.getElementById("filterStatus").addEventListener("change", function(e) { filterStatus = e.target.value; render(); });
-document.getElementById("sortBy").addEventListener("change", function(e) { sortBy = e.target.value; render(); });
-document.getElementById("btnClearFilters").addEventListener("click", function() { filterCustomer = "all"; filterProject = "all"; filterStatus = "all"; render(); });
 document.getElementById("btnPrint").addEventListener("click", function() { window.print(); });
 
 document.getElementById("btnExport").addEventListener("click", function() {
@@ -613,7 +575,7 @@ document.getElementById("importFile").addEventListener("change", function(e) {
     );
     if (proceed) {
       state = parsed;
-      filterCustomer = "all"; filterProject = "all"; filterStatus = "all";
+      filterCustomer = "all";
       render();
     }
     e.target.value = "";
